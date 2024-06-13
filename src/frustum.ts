@@ -1,5 +1,5 @@
 import { Matrix4, Plane, WebGLCoordinateSystem, WebGPUCoordinateSystem } from "three";
-import { FloatArray } from "./incrementalBVH";
+import { FloatArray } from "./BVH";
 
 /** @internal @LASTREV 165 Frustum */
 export class Frustum {

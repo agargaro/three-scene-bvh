@@ -1,14 +1,14 @@
 import { Camera, Matrix4, Mesh, Object3D } from 'three';
 import { Frustum } from './frustum';
-import { FloatArray, IncrementalBVH, Node } from './incrementalBVH';
+import { BVH, FloatArray, Node } from './BVH';
 import { updateBox } from './utils';
+import { IncrementalBuilder } from './IncrementalBuilder';
 
-export class FrustumBVH extends IncrementalBVH {
-  public verbose: boolean;
+export class FrustumBVH extends BVH<{}, Object3D> {
   protected _frustum = new Frustum();
 
   constructor(margin?: number, verbose?: boolean) {
-    super(margin);
+    super(new IncrementalBuilder(margin), verbose);
     this.verbose = verbose;
   }
 
@@ -22,6 +22,7 @@ export class FrustumBVH extends IncrementalBVH {
 
   public override move(node: Node): void {
     updateBox(node.object as Mesh, node.box); // TODO fix if don't use mesh
+
     super.move(node);
   }
 

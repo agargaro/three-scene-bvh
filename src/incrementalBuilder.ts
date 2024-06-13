@@ -1,24 +1,22 @@
-import { Object3D } from 'three';
+import { FloatArray, IBVHBuilder } from './BVH';
 import { areaBox, areaFromTwoBoxes, isBoxInsideBox, unionBox } from './utils';
 
-export type FloatArray = Float32Array | Float64Array;
-
-export type Node<T = {}> = {
+export type Node<NodeData = {}, LeafData = any> = {
   box: FloatArray;
-  parent?: Node<T>;
-  object?: Object3D; // remove this three.js reference to make it general
-  left?: Node<T>;
-  right?: Node<T>;
+  parent?: Node<NodeData, LeafData>;
+  object?: LeafData; // remove this three.js reference to make it general
+  left?: Node<NodeData, LeafData>;
+  right?: Node<NodeData, LeafData>;
   area?: number; // this use more memory but makes add faster
-} & T;
+} & NodeData;
 
 interface QueueElement {
   node: Node;
   inheritedCost: number;
 }
 
-export class IncrementalBVH<T = {}> {
-  public root: Node<T> = null;
+export class IncrementalBuilder<NodeData = {}, LeafData = any> implements IBVHBuilder<NodeData, LeafData> {
+  public root: Node<NodeData, LeafData> = null;
   public rotatationBestCostTolerance = 0;
   protected _margin: number;
 
@@ -26,7 +24,7 @@ export class IncrementalBVH<T = {}> {
     this._margin = margin;
   }
 
-  public insert(object: Object3D, box: FloatArray): Node<T> {
+  public insert(object: LeafData, box: FloatArray): Node<NodeData, LeafData> {
     const leaf = this.createLeafNode(object, box);
 
     if (this.root === null) {
@@ -39,7 +37,7 @@ export class IncrementalBVH<T = {}> {
     return leaf;
   }
 
-  protected insertLeaf(leaf: Node<T>, newParent?: Node<T>): void {
+  protected insertLeaf(leaf: Node<NodeData, LeafData>, newParent?: Node<NodeData, LeafData>): void {
     leaf.area = areaBox(leaf.box); // if only move we don't need to recalculate it?
 
     const sibling = this.findBestSibling(leaf.box, leaf.area);
@@ -69,14 +67,14 @@ export class IncrementalBVH<T = {}> {
   }
 
   //update node.box before calling this function
-  public move(node: Node<T>): void {
+  public move(node: Node<NodeData, LeafData>): void {
     if (isBoxInsideBox(node.box, node.parent.box)) return;
 
     const deletedNode = this.delete(node);
     this.insertLeaf(node, deletedNode);
   }
 
-  public delete(node: Node<T>): Node<T> {
+  public delete(node: Node<NodeData, LeafData>): Node<NodeData, LeafData> {
     const parent = node.parent;
     const parent2 = parent.parent;
 
@@ -96,16 +94,16 @@ export class IncrementalBVH<T = {}> {
     return parent;
   }
 
-  protected createLeafNode(object: Object3D, box: FloatArray): Node<T> {
-    return { box, object, parent: null } as Node<T>;
+  protected createLeafNode(object: LeafData, box: FloatArray): Node<NodeData, LeafData> {
+    return { box, object, parent: null } as Node<NodeData, LeafData>;
   }
 
-  protected createInternalNode(parent: Node, sibling: Node, leaf: Node): Node<T> {
-    return { parent, left: sibling, right: leaf, box: new Float32Array(6) } as Node<T>;
+  protected createInternalNode(parent: Node, sibling: Node, leaf: Node): Node<NodeData, LeafData> {
+    return { parent, left: sibling, right: leaf, box: new Float32Array(6) } as Node<NodeData, LeafData>;
   }
 
   // Branch and Bound
-  protected findBestSibling(leafBox: FloatArray, leafArea: number): Node<T> {
+  protected findBestSibling(leafBox: FloatArray, leafArea: number): Node<NodeData, LeafData> {
     const queue: QueueElement[] = [{ node: this.root, inheritedCost: 0 }]; // we can avoid to recreate every time?
 
     let bestNode = null;
@@ -138,7 +136,7 @@ export class IncrementalBVH<T = {}> {
       }
     }
 
-    return bestNode as Node<T>;
+    return bestNode as Node<NodeData, LeafData>;
   }
 
   protected refit(node: Node): void {
@@ -220,7 +218,6 @@ export class IncrementalBVH<T = {}> {
     }
 
     if (nodeSwap1 !== undefined) {
-      //check if we want to use null instead of undefined
       this.swap(nodeSwap1, nodeSwap2);
     }
   }
@@ -243,4 +240,5 @@ export class IncrementalBVH<T = {}> {
     unionBox(parentB.left.box, parentB.right.box, parentBox, this._margin);
     parentB.area = areaBox(parentBox);
   }
+
 }
