@@ -9,9 +9,9 @@ import { SceneBVH } from './three.js/sceneBVH';
  */
 
 const useBVH = true; // you can test performance changing this. if you set false is the native three.js frustum culling and NO raycasting.
-const count = 10000;
+const count = 50000;
 const animatedCount = 1000;
-const radius = 1000; // to positioning meshes
+const radius = 10000; // to positioning meshes
 const marginBVH = 5;
 const verbose = false;
 

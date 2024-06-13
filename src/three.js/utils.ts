@@ -1,4 +1,4 @@
-import { Box3, Mesh } from "three";
+import { Box3, Intersection, Mesh } from "three";
 import { FloatArray } from "../core/BVH";
 
 const box3 = new Box3();
@@ -17,4 +17,8 @@ export function getBox(mesh: Mesh, array: FloatArray = new Float32Array(6)): Flo
   array[5] = max.z;
 
   return array;
+}
+
+export function ascSortIntersection(a: Intersection, b: Intersection): number {
+  return a.distance - b.distance;
 }

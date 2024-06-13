@@ -2,7 +2,7 @@ import { Camera, Intersection, Matrix4, Mesh, Object3D, Raycaster } from 'three'
 import { BVH, FloatArray, Node } from '../core/BVH';
 import { IncrementalBuilder } from '../core/incrementalBuilder';
 import { Frustum } from './frustum';
-import { getBox } from './utils';
+import { ascSortIntersection, getBox } from './utils';
 
 export class SceneBVH extends BVH<{}, Object3D> {
   public verbose: boolean;
@@ -92,7 +92,7 @@ export class SceneBVH extends BVH<{}, Object3D> {
       intersections.length = 0;
     }
 
-    // TODO add sort?
+    result.sort(ascSortIntersection);
 
     _target.length = 0;
 
@@ -101,5 +101,4 @@ export class SceneBVH extends BVH<{}, Object3D> {
 }
 
 const _projScreenMatrix = new Matrix4();
-const _mesh = new Mesh();
 const _target: Mesh[] = [];
