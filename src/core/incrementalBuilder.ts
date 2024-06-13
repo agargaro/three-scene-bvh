@@ -1,5 +1,5 @@
 import { FloatArray, IBVHBuilder } from './BVH';
-import { areaBox, areaFromTwoBoxes, isBoxInsideBox, unionBox } from './utils';
+import { areaBox, areaFromTwoBoxes, isBoxInsideBox, unionBox } from './boxUtils';
 
 export type Node<NodeData = {}, LeafData = any> = {
   box: FloatArray;

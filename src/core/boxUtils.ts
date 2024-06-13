@@ -1,4 +1,3 @@
-import { Box3, Mesh } from 'three';
 import { FloatArray } from './BVH';
 
 export function unionBox(A: FloatArray, B: FloatArray, target: FloatArray, margin: number): void {
@@ -47,7 +46,6 @@ export function areaBox(box: FloatArray): number {
 }
 
 export function areaFromTwoBoxes(A: FloatArray, B: FloatArray): number {
-  // create a separete file
   const minX = A[0] > B[0] ? B[0] : A[0];
   const maxX = A[1] < B[1] ? B[1] : A[1];
   const minY = A[2] > B[2] ? B[2] : A[2];
@@ -61,21 +59,3 @@ export function areaFromTwoBoxes(A: FloatArray, B: FloatArray): number {
 
   return 2 * (d0 * d1 + d1 * d2 + d2 * d0);
 }
-
-export function updateBox(mesh: Mesh, array: FloatArray = new Float32Array(6)): FloatArray { // create also getBox method
-  box3.copy(mesh.geometry.boundingBox).applyMatrix4(mesh.matrixWorld);
-
-  const min = box3.min;
-  const max = box3.max;
-
-  array[0] = min.x;
-  array[1] = max.x;
-  array[2] = min.y;
-  array[3] = max.y;
-  array[4] = min.z;
-  array[5] = max.z;
-
-  return array;
-}
-
-const box3 = new Box3();
