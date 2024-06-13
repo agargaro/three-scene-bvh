@@ -9,9 +9,9 @@ import { FrustumBVH } from './three.js/frustumBVH';
  */
 
 const applyFrustumBVH = true; // you can test performance changing this. if you set false is the native three.js frustum culling
-const count = 20000;
+const count = 10000;
 const animatedCount = 1000;
-const radius = 10000; // to positioning meshes
+const radius = 1000; // to positioning meshes
 const marginBVH = 5;
 const verbose = false;
 
@@ -24,8 +24,8 @@ scene.matrixWorldAutoUpdate = false;
 
 const camera = new PerspectiveCameraAuto(70, 0.1).translateZ(10);
 
-const material = new MeshBasicMaterial({ color: 'yellow' });
-const materialHover = new MeshNormalMaterial();
+const material = new MeshNormalMaterial();
+const materialHover = new MeshBasicMaterial({ color: 'yellow' });
 
 const geometries = [new BoxGeometry(1, 1, 1), new SphereGeometry(0.5, 9, 9), new ConeGeometry(0.5, 1, 9, 9), new RingGeometry(0.5, 1, 9, 9)];
 
@@ -91,7 +91,6 @@ main.createView({
 
     bvh.raycast(main.raycaster, intersections);
 
-    debugger;
     const intersected = intersections[0]?.object as Mesh;
 
     if (lastHovered !== intersected) {

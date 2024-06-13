@@ -85,13 +85,9 @@ export class FrustumBVH extends BVH<{}, Object3D> {
 
       if (!object.visible) continue;
 
-      _mesh.geometry = object.geometry;
-      _mesh.material = object.material; // do we need also material?
-      _mesh.matrixWorld = object.matrixWorld;
+      object.raycast(raycaster, intersections); // check if this sort
 
-      _mesh.raycast(raycaster, intersections); // capire se metodo migliore
-
-      result.push(...intersections);
+      result.push(...intersections); // TODO check performance
 
       intersections.length = 0;
     }
