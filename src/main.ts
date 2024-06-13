@@ -1,21 +1,21 @@
 import { Main, PerspectiveCameraAuto } from '@three.ez/main';
 import { BoxGeometry, ConeGeometry, Intersection, Mesh, MeshBasicMaterial, MeshNormalMaterial, RingGeometry, Scene, SphereGeometry } from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
-import { FrustumBVH } from './three.js/frustumBVH';
+import { SceneBVH } from './three.js/sceneBVH';
 
 /**
- * In this example, a BVH is used to perform frustum culling.
+ * In this example, a BVH is used to perform frustum culling and raycasting.
  * START CAN BE A LITTLE SLOW...
  */
 
-const applyFrustumBVH = true; // you can test performance changing this. if you set false is the native three.js frustum culling
+const useBVH = true; // you can test performance changing this. if you set false is the native three.js frustum culling and NO raycasting.
 const count = 10000;
 const animatedCount = 1000;
 const radius = 1000; // to positioning meshes
 const marginBVH = 5;
 const verbose = false;
 
-const bvh = applyFrustumBVH ? new FrustumBVH(marginBVH, verbose) : null;
+const bvh = useBVH ? new SceneBVH(marginBVH, verbose) : null;
 
 const scene = new Scene();
 scene.interceptByRaycaster = false; // disable three.ez events
@@ -37,7 +37,7 @@ console.time('building');
 
 for (let i = 0; i < count; i++) {
   const mesh = new Mesh(geometries[i % geometries.length], material);
-  mesh.frustumCulled = !applyFrustumBVH;
+  mesh.frustumCulled = !useBVH;
 
   mesh.quaternion.random();
   mesh.position.randomDirection().multiplyScalar(Math.random() * radius + 20);
@@ -47,7 +47,7 @@ for (let i = 0; i < count; i++) {
 
   scene.add(mesh);
 
-  const node = applyFrustumBVH ? bvh.insert(mesh) : undefined;
+  const node = useBVH ? bvh.insert(mesh) : undefined;
 
   if (animatedCount > i) {
 
@@ -57,7 +57,7 @@ for (let i = 0; i < count; i++) {
       mesh.updateMatrix();
       mesh.updateWorldMatrix(false, false);
 
-      if (applyFrustumBVH) bvh.move(node);
+      if (useBVH) bvh.move(node);
     });
 
   }
@@ -78,7 +78,7 @@ main.createView({
   backgroundColor: 'white',
 
   onBeforeRender: () => {
-    if (!applyFrustumBVH) return;
+    if (!useBVH) return;
 
     camera.updateMatrix();
     camera.updateWorldMatrix(false, false);

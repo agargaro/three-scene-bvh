@@ -4,7 +4,7 @@ import { IncrementalBuilder } from '../core/incrementalBuilder';
 import { Frustum } from './frustum';
 import { getBox } from './utils';
 
-export class FrustumBVH extends BVH<{}, Object3D> {
+export class SceneBVH extends BVH<{}, Object3D> {
   public verbose: boolean;
   protected _frustum = new Frustum();
 
