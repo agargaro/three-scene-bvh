@@ -10,7 +10,7 @@ import { FrustumBVH } from './frustumBVH';
 
 const applyFrustumBVH = true; // you can test performance changing this. if you set false is the native three.js frustum culling
 const count = 50000;
-const animatedCount = 0;
+const animatedCount = 1000;
 const radius = 20000; // to positioning meshes
 const marginBVH = 5;
 const verbose = false;
