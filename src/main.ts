@@ -10,10 +10,10 @@ import { BVHInspector } from './core/inspector';
  */
 
 const useBVH = true; // you can test performance changing this. if you set false is the native three.js frustum culling and NO raycasting.
-const count = 200000;
+const count = 100000;
 const animatedCount = 0;
-const radius = 50000; // to positioning meshes
-const marginBVH = 5;
+const radius = 4000; // to positioning meshes
+const marginBVH = 0;
 const verbose = false;
 
 const sceneBVH = useBVH ? new SceneBVH(marginBVH, verbose) : null;
@@ -72,6 +72,7 @@ main.createView({
   scene,
   camera,
   backgroundColor: 'white',
+  visible: false,
 
   onBeforeRender: () => {
     if (!useBVH) return;
@@ -98,7 +99,7 @@ main.createView({
   onAfterRender: () => {
     scene.children = originalChildren;
 
-    document.getElementById("drawCall").innerText = `${main.renderer.info.render.calls}`;
+    document.getElementById("drawCall").innerText = `drawCall: ${main.renderer.info.render.calls}`;
   }
 });
 
@@ -112,9 +113,9 @@ if (useBVH) {
   const inspector = new BVHInspector(sceneBVH.bvh);
 
   document.getElementById("info").innerText =
-    `construction time        : ${time.toFixed(2)}ms\n` +
-    `surface area score       : ${inspector.surfaceScore.toFixed(2)}\n` +
-    `total nodes              : ${inspector.totalNodes}\n` +
-    `total leaf nodes         : ${inspector.totalLeafNodes}\n` +
-    `min / max depth          : ${inspector.minDepth} / ${inspector.maxDepth}\n`;
+    `construction time  : ${time.toFixed(2)}ms\n` +
+    `surface area score : ${inspector.surfaceScore.toFixed(2)}\n` +
+    `total nodes        : ${inspector.totalNodes}\n` +
+    `total leaf nodes   : ${inspector.totalLeafNodes}\n` +
+    `min / max depth    : ${inspector.minDepth} / ${inspector.maxDepth}\n`;
 }

@@ -63,7 +63,7 @@ export class IncrementalBuilder<N, L> implements IBVHBuilder<N, L> {
 
     const oldParent = sibling.parent;
 
-    if (newParent === undefined) {
+    if (!newParent) {
       newParent = this.createInternalNode(oldParent, sibling, leaf);
     } else {
       newParent.parent = oldParent;
@@ -143,7 +143,7 @@ export class IncrementalBuilder<N, L> implements IBVHBuilder<N, L> {
         bestCost = currentCost;
       }
 
-      if (node.object === undefined) {
+      if (!node.object) {
         // is not leaf
         inheritedCost += directCost - node.area;
         const lowCost = leafArea + inheritedCost;
@@ -196,7 +196,7 @@ export class IncrementalBuilder<N, L> implements IBVHBuilder<N, L> {
     let nodeSwap2: Node<N, L>;
     let bestCost = 0; // todo can we use rotatationBestCostTolerance?
 
-    if (R.object === undefined) {
+    if (!R.object) {
       //is not leaf
       const RL = R.left;
       const RR = R.right;
@@ -217,7 +217,7 @@ export class IncrementalBuilder<N, L> implements IBVHBuilder<N, L> {
       }
     }
 
-    if (L.object === undefined) {
+    if (!L.object) {
       //is not leaf
       const LL = L.left;
       const LR = L.right;
@@ -236,7 +236,7 @@ export class IncrementalBuilder<N, L> implements IBVHBuilder<N, L> {
       }
     }
 
-    if (nodeSwap1 !== undefined) {
+    if (nodeSwap1) {
       this.swap(nodeSwap1, nodeSwap2);
     }
   }
