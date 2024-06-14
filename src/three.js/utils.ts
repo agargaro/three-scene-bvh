@@ -3,7 +3,7 @@ import { FloatArray } from "../core/BVH";
 
 const box3 = new Box3();
 
-export function getBox(mesh: Mesh, array: FloatArray = new Float32Array(6)): FloatArray {
+export function getBox(mesh: Mesh, array: FloatArray = new Float64Array(6)): FloatArray {
   if (!mesh.geometry.boundingBox) {
     mesh.geometry.computeBoundingBox();
   }

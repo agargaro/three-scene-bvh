@@ -1,5 +1,5 @@
 import { Main, PerspectiveCameraAuto } from '@three.ez/main';
-import { BoxGeometry, ConeGeometry, Intersection, Mesh, MeshBasicMaterial, MeshNormalMaterial, RingGeometry, Scene, SphereGeometry } from 'three';
+import { BoxGeometry, ConeGeometry, Intersection, Mesh, MeshBasicMaterial, MeshNormalMaterial, Scene, SphereGeometry, TorusGeometry } from 'three';
 import { MapControls } from 'three/examples/jsm/controls/MapControls';
 import { SceneBVH } from './three.js/sceneBVH';
 
@@ -9,9 +9,9 @@ import { SceneBVH } from './three.js/sceneBVH';
  */
 
 const useBVH = true; // you can test performance changing this. if you set false is the native three.js frustum culling and NO raycasting.
-const count = 100000;
-const animatedCount = 1000;
-const radius = 10000; // to positioning meshes
+const count = 1000;
+const animatedCount = 100;
+const radius = 1000; // to positioning meshes
 const marginBVH = 5;
 const verbose = false;
 
@@ -27,7 +27,7 @@ const camera = new PerspectiveCameraAuto(70, 0.1, 1000).translateZ(10);
 const material = new MeshNormalMaterial();
 const materialHover = new MeshBasicMaterial({ color: 'yellow' });
 
-const geometries = [new BoxGeometry(1, 1, 1), new SphereGeometry(0.5, 9, 9), new ConeGeometry(0.5, 1, 9, 9), new RingGeometry(0.5, 1, 9, 9)];
+const geometries = [new BoxGeometry(1, 1, 1), new SphereGeometry(0.5, 15, 15), new ConeGeometry(0.5, 1, 15, 15), new TorusGeometry(0.5, 0.2, 15, 15)];
 
 console.time('building');
 
@@ -35,15 +35,16 @@ for (let i = 0; i < count; i++) {
   const mesh = new Mesh(geometries[i % geometries.length], material);
   mesh.frustumCulled = !useBVH;
 
-  mesh.quaternion.random();
   mesh.position.setFromSphericalCoords((Math.random() * 0.99 + 0.01) * radius, Math.random() * Math.PI * 2, Math.random() * Math.PI * 2);
+  mesh.scale.multiplyScalar(Math.random() * 2 + 1);
+  mesh.quaternion.random();
 
   mesh.updateMatrix();
   mesh.updateWorldMatrix(false, false);
 
   scene.add(mesh);
 
-  const node = useBVH ? bvh.insert(mesh) : undefined;
+  if (useBVH) bvh.insert(mesh);
 
   if (animatedCount <= i) continue;
 
@@ -53,7 +54,7 @@ for (let i = 0; i < count; i++) {
     mesh.updateMatrix();
     mesh.updateWorldMatrix(false, false);
 
-    if (useBVH) bvh.move(node);
+    if (useBVH) bvh.move(mesh);
   });
 }
 
@@ -80,7 +81,7 @@ main.createView({
     frustumResult.length = 0;
     bvh.updateCulling(camera, frustumResult);
     scene.children = frustumResult;
-    
+
     intersections.length = 0;
     bvh.raycast(main.raycaster, intersections);
 

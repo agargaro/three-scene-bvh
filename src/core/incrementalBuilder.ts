@@ -1,4 +1,4 @@
-import { FloatArray, IBVHBuilder } from './BVH';
+import { FloatArray, IBVHBuilder, InsertElement } from './BVH';
 import { areaBox, areaFromTwoBoxes, isBoxInsideBox, unionBox } from './boxUtils';
 
 export type Node<NodeData, LeafData> = {
@@ -17,10 +17,9 @@ interface QueueElement<N, L> {
 
 export class IncrementalBuilder<N, L> implements IBVHBuilder<N, L> {
   public root: Node<N, L> = null;
-  public rotatationBestCostTolerance = 0;
   protected _margin: number;
 
-  constructor(margin: number = 0) {
+  constructor(margin: number) {
     this._margin = margin;
   }
 
@@ -28,13 +27,33 @@ export class IncrementalBuilder<N, L> implements IBVHBuilder<N, L> {
     const leaf = this.createLeafNode(object, box);
 
     if (this.root === null) {
-      this.root = leaf;
       leaf.area = areaBox(box);
+      this.root = leaf;
     } else {
       this.insertLeaf(leaf);
     }
 
     return leaf;
+  }
+
+  public insertRange(items: InsertElement<L>[]): Node<N, L>[] {
+    const leaves: Node<N, L>[] = new Array(items.length);
+
+    // for (let i = 0, l = items.length; i < l; i++) {
+    //   const item = items[i];
+    //   const leaf = this.createLeafNode(item.object, item.box);
+
+    //   if (this.root === null) { // remove from for?
+    //     leaf.area = areaBox(item.box);
+    //     this.root = leaf;
+    //   } else {
+    //     this.insertLeaf(leaf);
+    //   }
+
+    //   leaves.push(leaf);
+    // }
+
+    return leaves;
   }
 
   protected insertLeaf(leaf: Node<N, L>, newParent?: Node<N, L>): void {
@@ -99,7 +118,7 @@ export class IncrementalBuilder<N, L> implements IBVHBuilder<N, L> {
   }
 
   protected createInternalNode(parent: Node<N, L>, sibling: Node<N, L>, leaf: Node<N, L>): Node<N, L> {
-    return { parent, left: sibling, right: leaf, box: new Float32Array(6) } as Node<N, L>;
+    return { parent, left: sibling, right: leaf, box: new Float64Array(6) } as Node<N, L>;
   }
 
   // Branch and Bound
@@ -175,7 +194,7 @@ export class IncrementalBuilder<N, L> implements IBVHBuilder<N, L> {
 
     let nodeSwap1: Node<N, L>;
     let nodeSwap2: Node<N, L>;
-    let bestCost = this.rotatationBestCostTolerance;
+    let bestCost = 0; // todo can we use rotatationBestCostTolerance?
 
     if (R.object === undefined) {
       //is not leaf

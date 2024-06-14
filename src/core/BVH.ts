@@ -9,9 +9,12 @@ export type Node<NodeData, LeafData> = {
   right?: Node<NodeData, LeafData>;
 } & NodeData;
 
+export type InsertElement<L> = { object: L, box: FloatArray };
+
 export interface IBVHBuilder<N, L> {
   root: Node<N, L>;
   insert(object: L, box: FloatArray): Node<N, L>;
+  insertRange(items: InsertElement<L>[]): Node<N, L>[];
   move(node: Node<N, L>): void;
   delete(node: Node<N, L>): Node<N, L>;
 }
@@ -31,7 +34,6 @@ export class BVH<N, L> {
     return this.builder.insert(object, box);
   }
 
-  //update node.box before calling this function
   public move(node: Node<N, L>): void {
     this.builder.move(node);
   }
@@ -41,18 +43,17 @@ export class BVH<N, L> {
   }
 
   public intersectRay(dir: FloatArray, origin: FloatArray, near = 0, far = Infinity, result: L[] = []): L[] {
-    const dirInv = new Float32Array(3); // TODO not always float32
-    const sign = new Uint8Array(3); // TODO cache this two arrays
+    const dirInv = new Float64Array(3);
 
     dirInv[0] = 1 / dir[0];
     dirInv[1] = 1 / dir[1];
     dirInv[2] = 1 / dir[2];
 
-    sign[0] = dirInv[0] < 0 ? 1 : 0;
-    sign[1] = dirInv[1] < 0 ? 1 : 0;
-    sign[2] = dirInv[2] < 0 ? 1 : 0;
+    _sign[0] = dirInv[0] < 0 ? 1 : 0;
+    _sign[1] = dirInv[1] < 0 ? 1 : 0;
+    _sign[2] = dirInv[2] < 0 ? 1 : 0;
 
-    this._intersectRay(this.root, origin, dirInv, sign, near, far, result);
+    this._intersectRay(this.root, origin, dirInv, _sign, near, far, result);
 
     return result;
   }
@@ -71,3 +72,5 @@ export class BVH<N, L> {
   }
 
 }
+
+const _sign = new Uint8Array(3);

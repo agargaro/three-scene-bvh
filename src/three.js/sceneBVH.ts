@@ -1,5 +1,5 @@
-import { Camera, Intersection, Matrix4, Mesh, Object3D, Raycaster } from 'three';
-import { BVH, FloatArray, Node } from '../core/BVH';
+import { Camera, Intersection, Matrix4, Mesh, Object3D, Ray, Raycaster } from 'three';
+import { BVH, Node } from '../core/BVH';
 import { IncrementalBuilder } from '../core/incrementalBuilder';
 import { Frustum } from './frustum';
 import { ascSortIntersection, getBox } from './utils';
@@ -7,34 +7,40 @@ import { ascSortIntersection, getBox } from './utils';
 type N = {};
 type L = Object3D;
 
-export class SceneBVH extends BVH<N, L> {
+export class SceneBVH {
+  public bvh: BVH<N, L>;
   public verbose: boolean;
   protected _frustum = new Frustum();
 
-  constructor(margin?: number, verbose = false) {
-    super(new IncrementalBuilder(margin));
+  constructor(margin = 5, verbose = false) {
+    this.bvh = new BVH(new IncrementalBuilder(margin));
     this.verbose = verbose;
   }
 
-  public override insert(object: Mesh, box?: FloatArray): Node<N, L> {  // TODO fix if don't use mesh
-    if (box === undefined) box = getBox(object);
-    return super.insert(object, box);
+  public insert(object: Mesh): void {  // TODO fix if don't use only mesh
+    object.bvhNode = this.bvh.insert(object, getBox(object));
   }
 
-  public override move(node: Node<N, L>): void {
-    getBox(node.object as Mesh, node.box); // TODO fix if don't use mesh
-    super.move(node);
+  public move(object: Mesh): void {
+    const node = object.bvhNode;
+    getBox(object, node.box);
+    this.bvh.move(node);
+  }
+
+  public delete(object: Mesh): void {
+    const node = object.bvhNode;
+    this.bvh.delete(node); // add check delete only if exists
   }
 
   public updateCulling(camera: Camera, result: Object3D[]): void {
     _projScreenMatrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
 
-    this.verbose && console.time('Culling');
+    this.verbose && console.time('culling');
 
     this._frustum.setFromProjectionMatrix(_projScreenMatrix);
-    this.traverseVisibility(this.root, 0b111111, result);
+    this.traverseVisibility(this.bvh.root, 0b111111, result);
 
-    this.verbose && console.timeEnd('Culling');
+    this.verbose && console.timeEnd('culling');
   }
 
   private traverseVisibility(node: Node<N, L>, mask: number, result: Object3D[]): void {
@@ -67,36 +73,27 @@ export class SceneBVH extends BVH<N, L> {
   public raycast(raycaster: Raycaster, result: Intersection[]): void {
     this.verbose && console.time("raycast");
 
-    const origin = new Float32Array(3); // cache it?
-    const dir = new Float32Array(3); // cache it?
     const ray = raycaster.ray;
 
-    origin[0] = ray.origin.x;
-    origin[1] = ray.origin.y;
-    origin[2] = ray.origin.z;
+    _origin[0] = ray.origin.x;
+    _origin[1] = ray.origin.y;
+    _origin[2] = ray.origin.z;
 
-    dir[0] = ray.direction.x;
-    dir[1] = ray.direction.y;
-    dir[2] = ray.direction.z;
+    _dir[0] = ray.direction.x;
+    _dir[1] = ray.direction.y;
+    _dir[2] = ray.direction.z;
 
-    this.intersectRay(dir, origin, raycaster.near, raycaster.far, _target);
-
-    const intersections: Intersection[] = [] // cache it?
+    this.bvh.intersectRay(_dir, _origin, raycaster.near, raycaster.far, _target);
 
     for (let i = 0, l = _target.length; i < l; i++) {
       const object = _target[i];
 
       if (!object.visible) continue;
 
-      object.raycast(raycaster, intersections); // check if this sort
-
-      // _inverseMatrix.copy( matrixWorld ).invert();
-		  // _ray.copy( raycaster.ray ).applyMatrix4( _inverseMatrix );
-		  // this._computeIntersections( raycaster, intersects, _ray );
-
-      result.push(...intersections); // TODO check performance
-
-      intersections.length = 0; // remove this
+      // avoid using 'object.raycast()' we can skip bbox validation
+      _inverseMatrix.copy(object.matrixWorld).invert();
+      _ray.copy(ray).applyMatrix4(_inverseMatrix);
+      (object as any)._computeIntersections(raycaster, result, _ray);
     }
 
     result.sort(ascSortIntersection);
@@ -109,3 +106,7 @@ export class SceneBVH extends BVH<N, L> {
 
 const _projScreenMatrix = new Matrix4();
 const _target: Mesh[] = [];
+const _inverseMatrix = new Matrix4();
+const _ray = new Ray();
+const _origin = new Float64Array(3);
+const _dir = new Float64Array(3);
