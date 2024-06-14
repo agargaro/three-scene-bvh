@@ -2,45 +2,45 @@ import { intersectRayBox } from "./intersectUtils";
 
 export type FloatArray = Float32Array | Float64Array;
 
-export type Node<NodeData = {}, LeafData = any> = {
+export type Node<NodeData, LeafData> = {
   box: FloatArray;
   object?: LeafData;
-  left?: Node<NodeData>;
-  right?: Node<NodeData>;
+  left?: Node<NodeData, LeafData>;
+  right?: Node<NodeData, LeafData>;
 } & NodeData;
 
-export interface IBVHBuilder<NodeData = {}, LeafData = any> {
-  root: Node<NodeData, LeafData>;
-  insert(object: LeafData, box: FloatArray): Node<NodeData, LeafData>;
-  move(node: Node<NodeData, LeafData>): void;
-  delete(node: Node<NodeData, LeafData>): Node<NodeData, LeafData>;
+export interface IBVHBuilder<N, L> {
+  root: Node<N, L>;
+  insert(object: L, box: FloatArray): Node<N, L>;
+  move(node: Node<N, L>): void;
+  delete(node: Node<N, L>): Node<N, L>;
 }
 
-export class BVH<NodeData = {}, LeafData = any> {
-  public builder: IBVHBuilder<NodeData, LeafData>;
+export class BVH<N, L> {
+  public builder: IBVHBuilder<N, L>;
 
-  public get root(): Node<NodeData, LeafData> {
+  public get root(): Node<N, L> {
     return this.builder.root;
   }
 
-  constructor(builder: IBVHBuilder<NodeData, LeafData>) {
+  constructor(builder: IBVHBuilder<N, L>) {
     this.builder = builder;
   }
 
-  public insert(object: LeafData, box: FloatArray): Node<NodeData, LeafData> {
+  public insert(object: L, box: FloatArray): Node<N, L> {
     return this.builder.insert(object, box);
   }
 
   //update node.box before calling this function
-  public move(node: Node<NodeData, LeafData>): void {
+  public move(node: Node<N, L>): void {
     this.builder.move(node);
   }
 
-  public delete(node: Node<NodeData, LeafData>): void {
+  public delete(node: Node<N, L>): void {
     this.builder.delete(node);
   }
 
-  public intersectRay(dir: FloatArray, origin: FloatArray, near = 0, far = Infinity, result: LeafData[] = []): LeafData[] {
+  public intersectRay(dir: FloatArray, origin: FloatArray, near = 0, far = Infinity, result: L[] = []): L[] {
     const dirInv = new Float32Array(3); // TODO not always float32
     const sign = new Uint8Array(3); // TODO cache this two arrays
 
@@ -57,7 +57,7 @@ export class BVH<NodeData = {}, LeafData = any> {
     return result;
   }
 
-  protected _intersectRay(node: Node, origin: FloatArray, dirInv: FloatArray, sign: Uint8Array, near: number, far: number, result: LeafData[]): void {
+  protected _intersectRay(node: Node<N, L>, origin: FloatArray, dirInv: FloatArray, sign: Uint8Array, near: number, far: number, result: L[]): void {
 
     if (!intersectRayBox(node.box, origin, dirInv, sign, near, far)) return;
 

@@ -4,6 +4,10 @@ import { FloatArray } from "../core/BVH";
 const box3 = new Box3();
 
 export function getBox(mesh: Mesh, array: FloatArray = new Float32Array(6)): FloatArray {
+  if (!mesh.geometry.boundingBox) {
+    mesh.geometry.computeBoundingBox();
+  }
+
   box3.copy(mesh.geometry.boundingBox).applyMatrix4(mesh.matrixWorld);
 
   const min = box3.min;

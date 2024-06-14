@@ -4,7 +4,10 @@ import { IncrementalBuilder } from '../core/incrementalBuilder';
 import { Frustum } from './frustum';
 import { ascSortIntersection, getBox } from './utils';
 
-export class SceneBVH extends BVH<{}, Object3D> {
+type N = {};
+type L = Object3D;
+
+export class SceneBVH extends BVH<N, L> {
   public verbose: boolean;
   protected _frustum = new Frustum();
 
@@ -13,12 +16,12 @@ export class SceneBVH extends BVH<{}, Object3D> {
     this.verbose = verbose;
   }
 
-  public override insert(object: Mesh, box?: FloatArray): Node {  // TODO fix if don't use mesh
+  public override insert(object: Mesh, box?: FloatArray): Node<N, L> {  // TODO fix if don't use mesh
     if (box === undefined) box = getBox(object);
     return super.insert(object, box);
   }
 
-  public override move(node: Node): void {
+  public override move(node: Node<N, L>): void {
     getBox(node.object as Mesh, node.box); // TODO fix if don't use mesh
     super.move(node);
   }
@@ -34,7 +37,7 @@ export class SceneBVH extends BVH<{}, Object3D> {
     this.verbose && console.timeEnd('Culling');
   }
 
-  private traverseVisibility(node: Node, mask: number, result: Object3D[]): void {
+  private traverseVisibility(node: Node<N, L>, mask: number, result: Object3D[]): void {
     mask = this._frustum.intesectsBoxMask(node.box, mask);
 
     if (mask < 0) return; // -1 = out
@@ -51,7 +54,7 @@ export class SceneBVH extends BVH<{}, Object3D> {
     this.traverseVisibility(node.right, mask, result);
   }
 
-  private showAll(node: Node, result: Object3D[]): void {
+  private showAll(node: Node<N, L>, result: Object3D[]): void {
     if (node.object) {
       result.push(node.object);
       return;
@@ -87,9 +90,13 @@ export class SceneBVH extends BVH<{}, Object3D> {
 
       object.raycast(raycaster, intersections); // check if this sort
 
+      // _inverseMatrix.copy( matrixWorld ).invert();
+		  // _ray.copy( raycaster.ray ).applyMatrix4( _inverseMatrix );
+		  // this._computeIntersections( raycaster, intersects, _ray );
+
       result.push(...intersections); // TODO check performance
 
-      intersections.length = 0;
+      intersections.length = 0; // remove this
     }
 
     result.sort(ascSortIntersection);

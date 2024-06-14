@@ -1,7 +1,7 @@
 import { FloatArray, IBVHBuilder } from './BVH';
 import { areaBox, areaFromTwoBoxes, isBoxInsideBox, unionBox } from './boxUtils';
 
-export type Node<NodeData = {}, LeafData = any> = {
+export type Node<NodeData, LeafData> = {
   box: FloatArray;
   parent?: Node<NodeData, LeafData>;
   object?: LeafData; // remove this three.js reference to make it general
@@ -10,13 +10,13 @@ export type Node<NodeData = {}, LeafData = any> = {
   area?: number; // this use more memory but makes add faster
 } & NodeData;
 
-interface QueueElement {
-  node: Node;
+interface QueueElement<N, L> {
+  node: Node<N, L>;
   inheritedCost: number;
 }
 
-export class IncrementalBuilder<NodeData = {}, LeafData = any> implements IBVHBuilder<NodeData, LeafData> {
-  public root: Node<NodeData, LeafData> = null;
+export class IncrementalBuilder<N, L> implements IBVHBuilder<N, L> {
+  public root: Node<N, L> = null;
   public rotatationBestCostTolerance = 0;
   protected _margin: number;
 
@@ -24,7 +24,7 @@ export class IncrementalBuilder<NodeData = {}, LeafData = any> implements IBVHBu
     this._margin = margin;
   }
 
-  public insert(object: LeafData, box: FloatArray): Node<NodeData, LeafData> {
+  public insert(object: L, box: FloatArray): Node<N, L> {
     const leaf = this.createLeafNode(object, box);
 
     if (this.root === null) {
@@ -37,7 +37,7 @@ export class IncrementalBuilder<NodeData = {}, LeafData = any> implements IBVHBu
     return leaf;
   }
 
-  protected insertLeaf(leaf: Node<NodeData, LeafData>, newParent?: Node<NodeData, LeafData>): void {
+  protected insertLeaf(leaf: Node<N, L>, newParent?: Node<N, L>): void {
     leaf.area = areaBox(leaf.box); // if only move we don't need to recalculate it?
 
     const sibling = this.findBestSibling(leaf.box, leaf.area);
@@ -67,14 +67,14 @@ export class IncrementalBuilder<NodeData = {}, LeafData = any> implements IBVHBu
   }
 
   //update node.box before calling this function
-  public move(node: Node<NodeData, LeafData>): void {
+  public move(node: Node<N, L>): void {
     if (isBoxInsideBox(node.box, node.parent.box)) return;
 
     const deletedNode = this.delete(node);
     this.insertLeaf(node, deletedNode);
   }
 
-  public delete(node: Node<NodeData, LeafData>): Node<NodeData, LeafData> {
+  public delete(node: Node<N, L>): Node<N, L> {
     const parent = node.parent;
     const parent2 = parent.parent;
 
@@ -94,22 +94,22 @@ export class IncrementalBuilder<NodeData = {}, LeafData = any> implements IBVHBu
     return parent;
   }
 
-  protected createLeafNode(object: LeafData, box: FloatArray): Node<NodeData, LeafData> {
-    return { box, object, parent: null } as Node<NodeData, LeafData>;
+  protected createLeafNode(object: L, box: FloatArray): Node<N, L> {
+    return { box, object, parent: null } as Node<N, L>;
   }
 
-  protected createInternalNode(parent: Node, sibling: Node, leaf: Node): Node<NodeData, LeafData> {
-    return { parent, left: sibling, right: leaf, box: new Float32Array(6) } as Node<NodeData, LeafData>;
+  protected createInternalNode(parent: Node<N, L>, sibling: Node<N, L>, leaf: Node<N, L>): Node<N, L> {
+    return { parent, left: sibling, right: leaf, box: new Float32Array(6) } as Node<N, L>;
   }
 
   // Branch and Bound
-  protected findBestSibling(leafBox: FloatArray, leafArea: number): Node<NodeData, LeafData> {
-    const queue: QueueElement[] = [{ node: this.root, inheritedCost: 0 }]; // we can avoid to recreate every time?
+  protected findBestSibling(leafBox: FloatArray, leafArea: number): Node<N, L> {
+    const queue: QueueElement<N, L>[] = [{ node: this.root, inheritedCost: 0 }]; // we can avoid to recreate every time?
 
     let bestNode = null;
     let bestCost = Infinity;
-    let item: QueueElement;
-    let node: Node;
+    let item: QueueElement<N, L>;
+    let node: Node<N, L>;
     let inheritedCost: number;
 
     while ((item = queue.pop())) {
@@ -136,10 +136,10 @@ export class IncrementalBuilder<NodeData = {}, LeafData = any> implements IBVHBu
       }
     }
 
-    return bestNode as Node<NodeData, LeafData>;
+    return bestNode;
   }
 
-  protected refit(node: Node): void {
+  protected refit(node: Node<N, L>): void {
     do {
       const left = node.left;
       const right = node.right;
@@ -154,7 +154,7 @@ export class IncrementalBuilder<NodeData = {}, LeafData = any> implements IBVHBu
     } while (node);
   }
 
-  protected refitAndRotate(node: Node): void {
+  protected refitAndRotate(node: Node<N, L>): void {
     do {
       const left = node.left;
       const right = node.right;
@@ -169,12 +169,12 @@ export class IncrementalBuilder<NodeData = {}, LeafData = any> implements IBVHBu
     } while (node);
   }
 
-  protected rotate(node: Node): void {
+  protected rotate(node: Node<N, L>): void {
     const L = node.left;
     const R = node.right;
 
-    let nodeSwap1: Node;
-    let nodeSwap2: Node;
+    let nodeSwap1: Node<N, L>;
+    let nodeSwap2: Node<N, L>;
     let bestCost = this.rotatationBestCostTolerance;
 
     if (R.object === undefined) {
@@ -223,7 +223,7 @@ export class IncrementalBuilder<NodeData = {}, LeafData = any> implements IBVHBu
   }
 
   // this works only for rotation
-  protected swap(A: Node, B: Node): void {
+  protected swap(A: Node<N, L>, B: Node<N, L>): void {
     const parentA = A.parent;
     const parentB = B.parent;
     const parentBox = parentB.box;
