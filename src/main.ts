@@ -2,6 +2,7 @@ import { Main, PerspectiveCameraAuto } from '@three.ez/main';
 import { BoxGeometry, ConeGeometry, Intersection, Mesh, MeshBasicMaterial, MeshNormalMaterial, Scene, SphereGeometry, TorusGeometry } from 'three';
 import { MapControls } from 'three/examples/jsm/controls/MapControls';
 import { SceneBVH } from './three.js/sceneBVH';
+import { BVHInspector } from './core/inspector';
 
 /**
  * In this example, a BVH is used to perform frustum culling and raycasting.
@@ -9,13 +10,13 @@ import { SceneBVH } from './three.js/sceneBVH';
  */
 
 const useBVH = true; // you can test performance changing this. if you set false is the native three.js frustum culling and NO raycasting.
-const count = 1000;
-const animatedCount = 100;
-const radius = 1000; // to positioning meshes
+const count = 50000;
+const animatedCount = 1000;
+const radius = 5000; // to positioning meshes
 const marginBVH = 5;
 const verbose = false;
 
-const bvh = useBVH ? new SceneBVH(marginBVH, verbose) : null;
+const sceneBVH = useBVH ? new SceneBVH(marginBVH, verbose) : null;
 
 const scene = new Scene();
 scene.interceptByRaycaster = false; // disable three.ez events
@@ -29,13 +30,13 @@ const materialHover = new MeshBasicMaterial({ color: 'yellow' });
 
 const geometries = [new BoxGeometry(1, 1, 1), new SphereGeometry(0.5, 15, 15), new ConeGeometry(0.5, 1, 15, 15), new TorusGeometry(0.5, 0.2, 15, 15)];
 
-console.time('building');
+const start = performance.now();
 
 for (let i = 0; i < count; i++) {
   const mesh = new Mesh(geometries[i % geometries.length], material);
   mesh.frustumCulled = !useBVH;
 
-  mesh.position.setFromSphericalCoords((Math.random() * 0.99 + 0.01) * radius, Math.random() * Math.PI * 2, Math.random() * Math.PI * 2);
+  mesh.position.random().subScalar(0.5).multiplyScalar(radius);
   mesh.scale.multiplyScalar(Math.random() * 2 + 1);
   mesh.quaternion.random();
 
@@ -44,7 +45,8 @@ for (let i = 0; i < count; i++) {
 
   scene.add(mesh);
 
-  if (useBVH) bvh.insert(mesh);
+  // if (i === 999) debugger; //TODO
+  if (useBVH) sceneBVH.insert(mesh);
 
   if (animatedCount <= i) continue;
 
@@ -54,11 +56,11 @@ for (let i = 0; i < count; i++) {
     mesh.updateMatrix();
     mesh.updateWorldMatrix(false, false);
 
-    if (useBVH) bvh.move(mesh);
+    if (useBVH) sceneBVH.move(mesh);
   });
 }
 
-console.timeEnd('building');
+const time = performance.now() - start;
 
 const originalChildren = scene.children;
 const frustumResult: Mesh[] = [];
@@ -79,11 +81,11 @@ main.createView({
     camera.updateWorldMatrix(false, false);
 
     frustumResult.length = 0;
-    bvh.updateCulling(camera, frustumResult);
+    sceneBVH.updateCulling(camera, frustumResult);
     scene.children = frustumResult;
 
     intersections.length = 0;
-    bvh.raycast(main.raycaster, intersections);
+    sceneBVH.raycast(main.raycaster, intersections);
 
     const intersected = intersections[0]?.object as Mesh;
 
@@ -96,8 +98,23 @@ main.createView({
 
   onAfterRender: () => {
     scene.children = originalChildren;
+
+    document.getElementById("drawCall").innerText = `${main.renderer.info.render.calls}`;
   }
 });
 
 const controls = new MapControls(camera, main.renderer.domElement);
 controls.panSpeed = 10;
+
+const inspector = new BVHInspector(sceneBVH.bvh);
+
+document.getElementById("info").innerText =
+  `construction time        : ${time.toFixed(2)}ms\n` +
+  `surface area score       : ${inspector.surfaceScore.toFixed(2)}\n` +
+  `total nodes              : ${inspector.totalNodes}\n` +
+  `total leaf nodes         : ${inspector.totalLeafNodes}\n` +
+  `min / max depth          : ${inspector.minDepth} / ${inspector.maxDepth}\n`;
+// `memory (incl. geometry)  : ${ ( estimateMemoryInBytes( mesh.geometry.boundsTree ) * 1e-6 ).toFixed( 3 ) } mb \n` +
+// `memory (excl. geometry)  : ${ ( estimateMemoryInBytes( mesh.geometry.boundsTree._roots ) * 1e-6 ).toFixed( 3 ) } mb`;
+
+document.getElementById("loading").remove();

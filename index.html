@@ -1,28 +1,43 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>three.ez example</title>
-    <style>
-      html,
-      body {
-        height: 100%;
-        margin: 0;
-        overflow: hidden;
-        overscroll-behavior: none;
-      }
 
-      canvas {
-        width: 100%;
-        height: 100%;
-        display: block;
-        touch-action: none;
-        user-select: none;
-      }
-    </style>
-  </head>
-  <body>
-    <script type="module" src="/src/main.ts"></script>
-  </body>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>three.ez example</title>
+  <style>
+    html,
+    body {
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      overscroll-behavior: none;
+    }
+
+    canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      touch-action: none;
+      user-select: none;
+    }
+
+    #info-div {
+      position: absolute;
+      bottom: 0px;
+      margin: 20px;
+      font-size: 18px;
+    }
+  </style>
+</head>
+
+<body>
+  <h1 id="loading">Loading...</h1>
+  <script type="module" src="/src/main.ts"></script>
+  <div id="info-div">
+    <span id="info"></span>
+    drawCall: <span id="drawCall"></span>
+  </div>
+</body>
+
 </html>
