@@ -10,9 +10,9 @@ import { BVHInspector } from './core/inspector';
  */
 
 const useBVH = true; // you can test performance changing this. if you set false is the native three.js frustum culling and NO raycasting.
-const count = 50000;
-const animatedCount = 1000;
-const radius = 5000; // to positioning meshes
+const count = 200000;
+const animatedCount = 0;
+const radius = 50000; // to positioning meshes
 const marginBVH = 5;
 const verbose = false;
 
@@ -45,7 +45,6 @@ for (let i = 0; i < count; i++) {
 
   scene.add(mesh);
 
-  // if (i === 999) debugger; //TODO
   if (useBVH) sceneBVH.insert(mesh);
 
   if (animatedCount <= i) continue;
@@ -106,15 +105,16 @@ main.createView({
 const controls = new MapControls(camera, main.renderer.domElement);
 controls.panSpeed = 10;
 
-const inspector = new BVHInspector(sceneBVH.bvh);
-
-document.getElementById("info").innerText =
-  `construction time        : ${time.toFixed(2)}ms\n` +
-  `surface area score       : ${inspector.surfaceScore.toFixed(2)}\n` +
-  `total nodes              : ${inspector.totalNodes}\n` +
-  `total leaf nodes         : ${inspector.totalLeafNodes}\n` +
-  `min / max depth          : ${inspector.minDepth} / ${inspector.maxDepth}\n`;
-// `memory (incl. geometry)  : ${ ( estimateMemoryInBytes( mesh.geometry.boundsTree ) * 1e-6 ).toFixed( 3 ) } mb \n` +
-// `memory (excl. geometry)  : ${ ( estimateMemoryInBytes( mesh.geometry.boundsTree._roots ) * 1e-6 ).toFixed( 3 ) } mb`;
-
 document.getElementById("loading").remove();
+
+
+if (useBVH) {
+  const inspector = new BVHInspector(sceneBVH.bvh);
+
+  document.getElementById("info").innerText =
+    `construction time        : ${time.toFixed(2)}ms\n` +
+    `surface area score       : ${inspector.surfaceScore.toFixed(2)}\n` +
+    `total nodes              : ${inspector.totalNodes}\n` +
+    `total leaf nodes         : ${inspector.totalLeafNodes}\n` +
+    `min / max depth          : ${inspector.minDepth} / ${inspector.maxDepth}\n`;
+}
