@@ -4,7 +4,7 @@ import { areaBox, areaFromTwoBoxes, isBoxInsideBox, unionBox } from './boxUtils'
 export type Node<NodeData, LeafData> = {
   box: FloatArray;
   parent?: Node<NodeData, LeafData>;
-  object?: LeafData; // remove this three.js reference to make it general
+  object?: LeafData; // TODO call leaf instead?
   left?: Node<NodeData, LeafData>;
   right?: Node<NodeData, LeafData>;
   area?: number; // this use more memory but makes add faster
@@ -122,6 +122,71 @@ export class IncrementalBuilder<N, L> implements IBVHBuilder<N, L> {
   }
 
   // Branch and Bound
+  protected findBestSibling2(leafBox: FloatArray, leafArea: number): Node<N, L> {
+    const root = this.root;
+    let bestNode = root;
+    let bestCost = areaFromTwoBoxes(leafBox, root.box);
+    const queue: QueueElement<N, L>[] = [{ node: root, inheritedCost: bestCost - root.area }]; // we can avoid to recreate every time?
+    let item: QueueElement<N, L>;
+
+    while ((item = queue.pop())) { // togliere e mettere ricorsione
+      const node = item.node;
+      if (node.object) continue; // TODO migliorare... no sense creare oggetto se esce subito
+
+      const nodeL = node.left;
+      const nodeR = node.right;
+      const inheritedCost = item.inheritedCost;
+
+      const directCostL = areaFromTwoBoxes(leafBox, nodeL.box);
+      const currentCostL = directCostL + inheritedCost;
+      const inheritedCostL = inheritedCost + directCostL - nodeL.area;
+
+      const directCostR = areaFromTwoBoxes(leafBox, nodeR.box);
+      const currentCostR = directCostR + inheritedCost;
+      const inheritedCostR = inheritedCost + directCostR - nodeR.area;
+
+      if (currentCostL > currentCostR) {
+        if (bestCost > currentCostR) {
+          bestNode = nodeR;
+          bestCost = currentCostR;
+        }
+      } else {
+        if (bestCost > currentCostL) {
+          bestNode = nodeL;
+          bestCost = currentCostL;
+        }
+      }
+
+      if (inheritedCostR > inheritedCostL) {
+        let lowCost = leafArea + inheritedCostL;
+        if (lowCost >= bestCost) continue;
+
+        lowCost = leafArea + inheritedCostR;
+
+        if (bestCost > lowCost) {
+          queue.push({ node: nodeR, inheritedCost: inheritedCostR });
+          queue.push({ node: nodeL, inheritedCost: inheritedCostL });
+        } else {
+          queue.push({ node: nodeL, inheritedCost: inheritedCostL });
+        }
+      } else {
+        let lowCost = leafArea + inheritedCostR;
+        if (lowCost >= bestCost) continue;
+
+        lowCost = leafArea + inheritedCostL;
+
+        if (bestCost > lowCost) {
+          queue.push({ node: nodeL, inheritedCost: inheritedCostL });
+          queue.push({ node: nodeR, inheritedCost: inheritedCostR });
+        } else {
+          queue.push({ node: nodeR, inheritedCost: inheritedCostR });
+        }
+      }
+    }
+
+    return bestNode;
+  }
+
   protected findBestSibling(leafBox: FloatArray, leafArea: number): Node<N, L> {
     const queue: QueueElement<N, L>[] = [{ node: this.root, inheritedCost: 0 }]; // we can avoid to recreate every time?
 
