@@ -90,10 +90,8 @@ export class SceneBVH {
 
       if (!object.visible) continue;
 
-      // avoid using 'object.raycast()' we can skip bbox validation
-      _inverseMatrix.copy(object.matrixWorld).invert();
-      _ray.copy(ray).applyMatrix4(_inverseMatrix);
-      (object as any)._computeIntersections(raycaster, result, _ray);
+      object.raycast(raycaster, result);
+      // avoid using 'object.raycast()' we can skip bSphere validation
     }
 
     result.sort(ascSortIntersection);
@@ -106,7 +104,5 @@ export class SceneBVH {
 
 const _projScreenMatrix = new Matrix4();
 const _target: Mesh[] = [];
-const _inverseMatrix = new Matrix4();
-const _ray = new Ray();
 const _origin = new Float64Array(3);
 const _dir = new Float64Array(3);
