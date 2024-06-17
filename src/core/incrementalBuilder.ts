@@ -59,7 +59,7 @@ export class IncrementalBuilder<N, L> implements IBVHBuilder<N, L> {
   protected insertLeaf(leaf: Node<N, L>, newParent?: Node<N, L>): void {
     leaf.area = areaBox(leaf.box); // if only move we don't need to recalculate it?
 
-    const sibling = this.findBestSibling(leaf.box, leaf.area);
+    const sibling = this.findBestSibling3(leaf.box, leaf.area);
 
     const oldParent = sibling.parent;
 
@@ -119,6 +119,71 @@ export class IncrementalBuilder<N, L> implements IBVHBuilder<N, L> {
 
   protected createInternalNode(parent: Node<N, L>, sibling: Node<N, L>, leaf: Node<N, L>): Node<N, L> {
     return { parent, left: sibling, right: leaf, box: new Float64Array(6) } as Node<N, L>;
+  }
+
+  protected _bestNode: Node<N, L>;
+  protected _bestCost: number; // todo movo
+  protected _leafBox: FloatArray;
+  protected _leafArea: number;
+
+  // Branch and Bound
+  protected findBestSibling3(leafBox: FloatArray, leafArea: number): Node<N, L> {
+    const root = this.root;
+    this._leafBox = leafBox;
+    this._leafArea = leafArea;
+    this._bestNode = root;
+    this._bestCost = areaFromTwoBoxes(leafBox, root.box);
+
+    this._test(root, this._bestCost - root.area);
+
+    return this._bestNode;
+  }
+
+  protected _test(node: Node<N, L>, inheritedCost: number): void {
+    if (node.object) return; // TODO migliorare... no sense creare oggetto se esce subito
+
+    const leafBox = this._leafBox;
+    const leafArea = this._leafArea;
+    const nodeL = node.left;
+    const nodeR = node.right;
+
+    const directCostL = areaFromTwoBoxes(leafBox, nodeL.box);
+    const currentCostL = directCostL + inheritedCost;
+    const inheritedCostL = inheritedCost + directCostL - nodeL.area;
+
+    const directCostR = areaFromTwoBoxes(leafBox, nodeR.box);
+    const currentCostR = directCostR + inheritedCost;
+    const inheritedCostR = inheritedCost + directCostR - nodeR.area;
+
+    if (currentCostL > currentCostR) {
+      if (this._bestCost > currentCostR) {
+        this._bestNode = nodeR;
+        this._bestCost = currentCostR;
+      }
+    } else {
+      if (this._bestCost > currentCostL) {
+        this._bestNode = nodeL;
+        this._bestCost = currentCostL;
+      }
+    }
+
+    if (inheritedCostR > inheritedCostL) {
+
+      if (leafArea + inheritedCostL >= this._bestCost) return;
+      this._test(nodeL, inheritedCostL);
+
+      if (leafArea + inheritedCostR >= this._bestCost) return;
+      this._test(nodeR, inheritedCostR);
+
+    } else {
+
+      if (leafArea + inheritedCostR >= this._bestCost) return;
+      this._test(nodeR, inheritedCostR);
+
+      if (leafArea + inheritedCostL >= this._bestCost) return;
+      this._test(nodeL, inheritedCostL);
+
+    }
   }
 
   // Branch and Bound

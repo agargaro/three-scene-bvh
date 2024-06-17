@@ -1,10 +1,6 @@
 import { BVH, Node } from "./BVH";
 import { areaBox } from "./boxUtils";
 
-// https://github.com/gkjohnson/three-mesh-bvh/blob/master/src/core/Constants.js#L15
-export const TRIANGLE_INTERSECT_COST = 1.25;
-export const TRAVERSAL_COST = 1;
-
 export class BVHInspector {
     public totalNodes = 0;
     public totalLeafNodes = 0;
@@ -36,7 +32,7 @@ export class BVHInspector {
     protected getNodeData(node: Node<{}, {}>, depth: number): void {
         this.totalNodes++;
 
-        const surfaceArea = areaBox(node.box);
+        this.surfaceScore += areaBox(node.box);
 
         if (node.object) {
             this.totalLeafNodes++;
@@ -44,12 +40,8 @@ export class BVHInspector {
             if (depth < this.minDepth) this.minDepth = depth;
             if (depth > this.maxDepth) this.maxDepth = depth;
 
-            this.surfaceScore += surfaceArea * TRIANGLE_INTERSECT_COST; // * count;
-
             return;
         }
-
-        this.surfaceScore += surfaceArea * TRAVERSAL_COST;
 
         depth++;
 
