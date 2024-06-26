@@ -95,7 +95,7 @@ export class IncrementalBuilder<N, L> implements IBVHBuilder<N, L> {
 
   public delete(node: Node<N, L>): Node<N, L> {
     const parent = node.parent;
-    const parent2 = parent.parent;
+    const parent2 = parent.parent; // TODO Fix if this is undefined
 
     const oppositeLeaf = parent.left === node ? parent.right : parent.left;
 

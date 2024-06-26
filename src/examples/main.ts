@@ -1,9 +1,10 @@
 import { Main, PerspectiveCameraAuto } from '@three.ez/main';
 import { BoxGeometry, ConeGeometry, Intersection, LineSegments, Mesh, MeshBasicMaterial, MeshNormalMaterial, Scene, SphereGeometry, TorusGeometry } from 'three';
 import { MapControls } from 'three/examples/jsm/controls/MapControls';
-import { SceneBVH } from './three.js/sceneBVH';
-import { BVHInspector } from './core/inspector';
-import { SceneBVHHelper } from './three.js/sceneBVHHelper';
+import { SceneBVH } from '../three.js/sceneBVH';
+import { BVHInspector } from '../core/inspector';
+import { SceneBVHHelper } from '../three.js/sceneBVHHelper';
+import { PRNG } from './utils/random';
 
 /**
  * In this example, a BVH is used to perform frustum culling and raycasting.
@@ -13,10 +14,10 @@ import { SceneBVHHelper } from './three.js/sceneBVHHelper';
 const useBVH = true; // you can test performance changing this. if you set false is the native three.js frustum culling and NO raycasting.
 const count = 100;
 const animatedCount = 20;
-const radius = 100; // to positioning meshes
+const halfRadius = 100; // to positioning meshes
 const marginBVH = 0;
 const verbose = false;
-const random = PRNG(count);
+const random = new PRNG(count);
 
 const sceneBVH = useBVH ? new SceneBVH(marginBVH, verbose) : null;
 
@@ -37,9 +38,9 @@ for (let i = 0; i < count; i++) {
   const mesh = new Mesh(geometries[i % geometries.length], material);
   mesh.frustumCulled = !useBVH;
 
-  mesh.position.x = random.range(-radius, radius);
-  mesh.position.y = random.range(-radius, radius);
-  mesh.position.z = random.range(-radius, radius);
+  mesh.position.x = random.range(-halfRadius, halfRadius);
+  mesh.position.y = random.range(-halfRadius, halfRadius);
+  mesh.position.z = random.range(-halfRadius, halfRadius);
 
   mesh.updateMatrix();
   mesh.updateWorldMatrix(false, false);
@@ -138,22 +139,4 @@ if (useBVH) {
     `total nodes        : ${inspector.totalNodes}\n` +
     `total leaf nodes   : ${inspector.totalLeafNodes}\n` +
     `min / max depth    : ${inspector.minDepth} / ${inspector.maxDepth}\n`;
-}
-
-export function PRNG(seed: number) {
-  const value = mulberry32(seed);
-  return {
-    range(min, max) {
-      return min + (max - min) * value();
-    },
-  };
-}
-
-function mulberry32(a: number) {
-  return function () {
-    var t = (a += 0x6d2b79f5);
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
 }
