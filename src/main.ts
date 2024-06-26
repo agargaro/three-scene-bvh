@@ -1,8 +1,9 @@
 import { Main, PerspectiveCameraAuto } from '@three.ez/main';
-import { BoxGeometry, ConeGeometry, Intersection, Mesh, MeshBasicMaterial, MeshNormalMaterial, Scene, SphereGeometry, TorusGeometry } from 'three';
+import { BoxGeometry, ConeGeometry, Intersection, LineSegments, Mesh, MeshBasicMaterial, MeshNormalMaterial, Scene, SphereGeometry, TorusGeometry } from 'three';
 import { MapControls } from 'three/examples/jsm/controls/MapControls';
 import { SceneBVH } from './three.js/sceneBVH';
 import { BVHInspector } from './core/inspector';
+import { SceneBVHHelper } from './three.js/sceneBVHHelper';
 
 /**
  * In this example, a BVH is used to perform frustum culling and raycasting.
@@ -10,10 +11,10 @@ import { BVHInspector } from './core/inspector';
  */
 
 const useBVH = true; // you can test performance changing this. if you set false is the native three.js frustum culling and NO raycasting.
-const count = 100000;
-const animatedCount = 0;
-const radius = 10000; // to positioning meshes
-const marginBVH = 5;
+const count = 100;
+const animatedCount = 20;
+const radius = 100; // to positioning meshes
+const marginBVH = 0;
 const verbose = false;
 const random = PRNG(count);
 
@@ -24,7 +25,7 @@ scene.interceptByRaycaster = false; // disable three.ez events
 scene.matrixAutoUpdate = false; // if I don't put this there's a bug... already opened in three.js repo
 scene.matrixWorldAutoUpdate = false;
 
-const camera = new PerspectiveCameraAuto(70).translateZ(10);
+const camera = new PerspectiveCameraAuto(70, 0.1, 10000).translateZ(500);
 
 const material = new MeshNormalMaterial();
 const materialHover = new MeshBasicMaterial({ color: 'yellow' });
@@ -48,7 +49,7 @@ for (let i = 0; i < count; i++) {
   if (animatedCount <= i) continue;
 
   mesh.on('animate', (e) => {
-    mesh.position.x += e.delta;
+    mesh.position.x += e.delta * 10;
 
     mesh.updateMatrix();
     mesh.updateWorldMatrix(false, false);
@@ -61,6 +62,7 @@ const start = performance.now();
 
 if (useBVH) {
   const children = scene.children;
+
   for (let i = 0, l = children.length; i < l; i++) {
     sceneBVH.insert(children[i] as Mesh);
   }
@@ -69,9 +71,15 @@ if (useBVH) {
 const time = performance.now() - start;
 
 const originalChildren = scene.children;
-const frustumResult: Mesh[] = [];
+const frustumResult: (Mesh | LineSegments)[] = [];
 const intersections: Intersection[] = [];
 let lastHovered: Mesh;
+let helper: SceneBVHHelper;
+
+if (useBVH) {
+  helper = new SceneBVHHelper(sceneBVH, 40, true);
+  scene.add(helper);
+}
 
 const main = new Main();
 
@@ -82,17 +90,23 @@ main.createView({
   // visible: false,
 
   onBeforeRender: () => {
-    if (!useBVH) return;
-
     camera.updateMatrix();
     camera.updateWorldMatrix(false, false);
 
-    frustumResult.length = 0;
-    sceneBVH.updateCulling(camera, frustumResult);
-    scene.children = frustumResult;
-
     intersections.length = 0;
-    sceneBVH.raycast(main.raycaster, intersections);
+
+    if (useBVH) {
+      frustumResult.length = 0;
+      sceneBVH.updateCulling(camera, frustumResult);
+      scene.children = frustumResult;
+
+      if (animatedCount > 0) helper.update();
+      frustumResult.push(helper);
+
+      sceneBVH.raycast(main.raycaster, intersections);
+    } else {
+      main.raycaster.intersectObjects(scene.children, false, intersections);
+    }
 
     const intersected = intersections[0]?.object as Mesh;
 

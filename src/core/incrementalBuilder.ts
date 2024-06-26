@@ -59,7 +59,7 @@ export class IncrementalBuilder<N, L> implements IBVHBuilder<N, L> {
   protected insertLeaf(leaf: Node<N, L>, newParent?: Node<N, L>): void {
     leaf.area = areaBox(leaf.box); // if only move we don't need to recalculate it?
 
-    const sibling = this.findBestSibling3(leaf.box, leaf.area);
+    const sibling = this.findBestSibling2(leaf.box, leaf.area);
 
     const oldParent = sibling.parent;
 
@@ -121,86 +121,19 @@ export class IncrementalBuilder<N, L> implements IBVHBuilder<N, L> {
     return { parent, left: sibling, right: leaf, box: new Float64Array(6) } as Node<N, L>;
   }
 
-  protected _bestNode: Node<N, L>;
-  protected _bestCost: number; // todo movo
-  protected _leafBox: FloatArray;
-  protected _leafArea: number;
-
-  // Branch and Bound
-  protected findBestSibling3(leafBox: FloatArray, leafArea: number): Node<N, L> {
-    const root = this.root;
-    this._leafBox = leafBox;
-    this._leafArea = leafArea;
-    this._bestNode = root;
-    this._bestCost = areaFromTwoBoxes(leafBox, root.box);
-
-    this._test(root, this._bestCost - root.area);
-
-    return this._bestNode;
-  }
-
-  protected _test(node: Node<N, L>, inheritedCost: number): void {
-    if (node.object) return; // TODO migliorare... no sense creare oggetto se esce subito
-
-    const leafBox = this._leafBox;
-    const leafArea = this._leafArea;
-    const nodeL = node.left;
-    const nodeR = node.right;
-
-    const directCostL = areaFromTwoBoxes(leafBox, nodeL.box);
-    const currentCostL = directCostL + inheritedCost;
-    const inheritedCostL = inheritedCost + directCostL - nodeL.area;
-
-    const directCostR = areaFromTwoBoxes(leafBox, nodeR.box);
-    const currentCostR = directCostR + inheritedCost;
-    const inheritedCostR = inheritedCost + directCostR - nodeR.area;
-
-    if (currentCostL > currentCostR) {
-      if (this._bestCost > currentCostR) {
-        this._bestNode = nodeR;
-        this._bestCost = currentCostR;
-      }
-    } else {
-      if (this._bestCost > currentCostL) {
-        this._bestNode = nodeL;
-        this._bestCost = currentCostL;
-      }
-    }
-
-    if (inheritedCostR > inheritedCostL) {
-
-      if (leafArea + inheritedCostL >= this._bestCost) return;
-      this._test(nodeL, inheritedCostL);
-
-      if (leafArea + inheritedCostR >= this._bestCost) return;
-      this._test(nodeR, inheritedCostR);
-
-    } else {
-
-      if (leafArea + inheritedCostR >= this._bestCost) return;
-      this._test(nodeR, inheritedCostR);
-
-      if (leafArea + inheritedCostL >= this._bestCost) return;
-      this._test(nodeL, inheritedCostL);
-
-    }
-  }
-
   // Branch and Bound
   protected findBestSibling2(leafBox: FloatArray, leafArea: number): Node<N, L> {
     const root = this.root;
     let bestNode = root;
     let bestCost = areaFromTwoBoxes(leafBox, root.box);
-    const queue: QueueElement<N, L>[] = [{ node: root, inheritedCost: bestCost - root.area }]; // we can avoid to recreate every time?
-    let item: QueueElement<N, L>;
 
-    while ((item = queue.pop())) { // togliere e mettere ricorsione
-      const node = item.node;
-      if (node.object) continue; // TODO migliorare... no sense creare oggetto se esce subito
+    _findBestSibling(root, bestCost - root.area);
+
+    function _findBestSibling(node: Node<N, L>, inheritedCost: number): void {
+      if (node.object) return; // TODO migliorare... no sense creare oggetto se esce subito
 
       const nodeL = node.left;
       const nodeR = node.right;
-      const inheritedCost = item.inheritedCost;
 
       const directCostL = areaFromTwoBoxes(leafBox, nodeL.box);
       const currentCostL = directCostL + inheritedCost;
@@ -223,29 +156,21 @@ export class IncrementalBuilder<N, L> implements IBVHBuilder<N, L> {
       }
 
       if (inheritedCostR > inheritedCostL) {
-        let lowCost = leafArea + inheritedCostL;
-        if (lowCost >= bestCost) continue;
 
-        lowCost = leafArea + inheritedCostR;
+        if (leafArea + inheritedCostL >= bestCost) return;
+        _findBestSibling(nodeL, inheritedCostL);
 
-        if (bestCost > lowCost) {
-          queue.push({ node: nodeR, inheritedCost: inheritedCostR });
-          queue.push({ node: nodeL, inheritedCost: inheritedCostL });
-        } else {
-          queue.push({ node: nodeL, inheritedCost: inheritedCostL });
-        }
+        if (leafArea + inheritedCostR >= bestCost) return;
+        _findBestSibling(nodeR, inheritedCostR);
+
       } else {
-        let lowCost = leafArea + inheritedCostR;
-        if (lowCost >= bestCost) continue;
 
-        lowCost = leafArea + inheritedCostL;
+        if (leafArea + inheritedCostR >= bestCost) return;
+        _findBestSibling(nodeR, inheritedCostR);
 
-        if (bestCost > lowCost) {
-          queue.push({ node: nodeL, inheritedCost: inheritedCostL });
-          queue.push({ node: nodeR, inheritedCost: inheritedCostR });
-        } else {
-          queue.push({ node: nodeR, inheritedCost: inheritedCostR });
-        }
+        if (leafArea + inheritedCostL >= bestCost) return;
+        _findBestSibling(nodeL, inheritedCostL);
+
       }
     }
 
@@ -273,8 +198,7 @@ export class IncrementalBuilder<N, L> implements IBVHBuilder<N, L> {
         bestCost = currentCost;
       }
 
-      if (!node.object) {
-        // is not leaf
+      if (!node.object) { // is not leaf
         inheritedCost += directCost - node.area;
         const lowCost = leafArea + inheritedCost;
 
@@ -294,7 +218,7 @@ export class IncrementalBuilder<N, L> implements IBVHBuilder<N, L> {
       const right = node.right;
       const nodeBox = node.box;
 
-      // FIX if area doesn't change, stop iterating
+      // TODO CHECK if area doesn't change, stop iterating
 
       unionBox(left.box, right.box, nodeBox, this._margin);
       node.area = areaBox(nodeBox);
