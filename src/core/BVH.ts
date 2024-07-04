@@ -14,9 +14,10 @@ export type InsertElement<L> = { object: L, box: FloatArray };
 export interface IBVHBuilder<N, L> {
   root: Node<N, L>;
   insert(object: L, box: FloatArray): Node<N, L>;
-  insertRange(items: InsertElement<L>[]): Node<N, L>[];
+  // insertRange(items: InsertElement<L>[]): Node<N, L>[];
   move(node: Node<N, L>): void;
   delete(node: Node<N, L>): Node<N, L>;
+  clear(): void;
 }
 
 export class BVH<N, L> {

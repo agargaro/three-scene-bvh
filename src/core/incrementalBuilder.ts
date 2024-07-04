@@ -10,17 +10,16 @@ export type Node<NodeData, LeafData> = {
   area?: number; // this use more memory but makes add faster
 } & NodeData;
 
-interface QueueElement<N, L> {
-  node: Node<N, L>;
-  inheritedCost: number;
-}
-
 export class IncrementalBuilder<N, L> implements IBVHBuilder<N, L> {
   public root: Node<N, L> = null;
   protected _margin: number;
 
   constructor(margin: number) {
     this._margin = margin;
+  }
+
+  public clear(): void {
+    this.root = null;
   }
 
   public insert(object: L, box: FloatArray): Node<N, L> {
@@ -59,7 +58,7 @@ export class IncrementalBuilder<N, L> implements IBVHBuilder<N, L> {
   protected insertLeaf(leaf: Node<N, L>, newParent?: Node<N, L>): void {
     leaf.area = areaBox(leaf.box); // if only move we don't need to recalculate it?
 
-    const sibling = this.findBestSibling2(leaf.box, leaf.area);
+    const sibling = this.findBestSibling(leaf.box, leaf.area);
 
     const oldParent = sibling.parent;
 
@@ -122,7 +121,7 @@ export class IncrementalBuilder<N, L> implements IBVHBuilder<N, L> {
   }
 
   // Branch and Bound
-  protected findBestSibling2(leafBox: FloatArray, leafArea: number): Node<N, L> {
+  protected findBestSibling(leafBox: FloatArray, leafArea: number): Node<N, L> {
     const root = this.root;
     let bestNode = root;
     let bestCost = areaFromTwoBoxes(leafBox, root.box);
@@ -171,41 +170,6 @@ export class IncrementalBuilder<N, L> implements IBVHBuilder<N, L> {
         if (leafArea + inheritedCostL >= bestCost) return;
         _findBestSibling(nodeL, inheritedCostL);
 
-      }
-    }
-
-    return bestNode;
-  }
-
-  protected findBestSibling(leafBox: FloatArray, leafArea: number): Node<N, L> {
-    const queue: QueueElement<N, L>[] = [{ node: this.root, inheritedCost: 0 }]; // we can avoid to recreate every time?
-
-    let bestNode = null;
-    let bestCost = Infinity;
-    let item: QueueElement<N, L>;
-    let node: Node<N, L>;
-    let inheritedCost: number;
-
-    while ((item = queue.pop())) {
-      node = item.node;
-      inheritedCost = item.inheritedCost;
-
-      const directCost = areaFromTwoBoxes(leafBox, node.box);
-      const currentCost = directCost + inheritedCost;
-
-      if (bestCost > currentCost) {
-        bestNode = node;
-        bestCost = currentCost;
-      }
-
-      if (!node.object) { // is not leaf
-        inheritedCost += directCost - node.area;
-        const lowCost = leafArea + inheritedCost;
-
-        if (bestCost > lowCost) {
-          queue.push({ node: node.left, inheritedCost }); // use a sortedQueue instead?
-          queue.push({ node: node.right, inheritedCost });
-        }
       }
     }
 

@@ -18,18 +18,20 @@ export class SceneBVH {
   }
 
   public insert(object: Mesh): void {  // TODO fix if don't use only mesh
-    object.bvhNode = this.bvh.insert(object, getBox(object));
+    const node = this.bvh.insert(object, getBox(object));
+    _map.set(object, node);
   }
 
   public move(object: Mesh): void {
-    const node = object.bvhNode;
+    const node = _map.get(object);
     getBox(object, node.box);
     this.bvh.move(node);
   }
 
   public delete(object: Mesh): void {
-    const node = object.bvhNode;
+    const node = _map.get(object);
     this.bvh.delete(node); // add check delete only if exists
+    // _map.delete(object); do only if delete and not move
   }
 
   public updateCulling(camera: Camera, result: Object3D[]): void {
@@ -106,3 +108,4 @@ const _projScreenMatrix = new Matrix4();
 const _target: Mesh[] = [];
 const _origin = new Float64Array(3);
 const _dir = new Float64Array(3);
+const _map = new WeakMap<Object3D, Node<N, L>>();
