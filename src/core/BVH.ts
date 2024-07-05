@@ -9,7 +9,7 @@ export type Node<NodeData, LeafData> = {
   right?: Node<NodeData, LeafData>;
 } & NodeData;
 
-export type InsertElement<L> = { object: L, box: FloatArray };
+// export type InsertElement<L> = { object: L, box: FloatArray };
 
 export interface IBVHBuilder<N, L> {
   root: Node<N, L>;
@@ -72,23 +72,21 @@ export class BVH<N, L> {
     _sign[2] = _dirInv[2] < 0 ? 1 : 0;
 
     // use inner function
-    this._intersectRay(this.root, origin, _dirInv, _sign, near, far, result);
+    _intersectRay(this.root);
 
     return result;
-  }
 
-  // TODO check dirInv and sign useless to pass as parameter?
-  protected _intersectRay(node: Node<N, L>, origin: FloatArray, dirInv: FloatArray, sign: Uint8Array, near: number, far: number, result: L[]): void {
-
-    if (!intersectRayBox(node.box, origin, dirInv, sign, near, far)) return;
-
-    if (node.object) {
-      result.push(node.object);
-      return;
+    function _intersectRay(node: Node<N, L>): void {
+      if (!intersectRayBox(node.box, origin, _dirInv, _sign, near, far)) return;
+  
+      if (node.object) {
+        result.push(node.object);
+        return;
+      }
+  
+      _intersectRay(node.left);
+      _intersectRay(node.right);
     }
-
-    this._intersectRay(node.left, origin, dirInv, sign, near, far, result);
-    this._intersectRay(node.right, origin, dirInv, sign, near, far, result);
   }
 
 }

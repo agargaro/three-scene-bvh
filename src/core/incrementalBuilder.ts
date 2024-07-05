@@ -1,10 +1,10 @@
-import { FloatArray, IBVHBuilder, InsertElement } from './BVH';
+import { FloatArray, IBVHBuilder } from './BVH';
 import { areaBox, areaFromTwoBoxes, isBoxInsideBox, unionBox } from './boxUtils';
 
 export type Node<NodeData, LeafData> = {
   box: FloatArray;
   parent?: Node<NodeData, LeafData>;
-  object?: LeafData; // TODO call leaf instead?
+  object?: LeafData;
   left?: Node<NodeData, LeafData>;
   right?: Node<NodeData, LeafData>;
   area?: number; // this use more memory but makes add faster
@@ -33,26 +33,6 @@ export class IncrementalBuilder<N, L> implements IBVHBuilder<N, L> {
     }
 
     return leaf;
-  }
-
-  public insertRange(items: InsertElement<L>[]): Node<N, L>[] {
-    const leaves: Node<N, L>[] = new Array(items.length);
-
-    // for (let i = 0, l = items.length; i < l; i++) {
-    //   const item = items[i];
-    //   const leaf = this.createLeafNode(item.object, item.box);
-
-    //   if (this.root === null) { // remove from for?
-    //     leaf.area = areaBox(item.box);
-    //     this.root = leaf;
-    //   } else {
-    //     this.insertLeaf(leaf);
-    //   }
-
-    //   leaves.push(leaf);
-    // }
-
-    return leaves;
   }
 
   protected insertLeaf(leaf: Node<N, L>, newParent?: Node<N, L>): void {
@@ -94,15 +74,21 @@ export class IncrementalBuilder<N, L> implements IBVHBuilder<N, L> {
 
   public delete(node: Node<N, L>): Node<N, L> {
     const parent = node.parent;
-    const parent2 = parent.parent; // TODO Fix if this is undefined
+    const parent2 = parent.parent;
 
     const oppositeLeaf = parent.left === node ? parent.right : parent.left;
+
+    oppositeLeaf.parent = parent2;
+    node.parent = null;
+
+    if (parent2 === null) {
+      this.root = oppositeLeaf;
+      return parent;
+    }
 
     if (parent2.left === parent) parent2.left = oppositeLeaf;
     else parent2.right = oppositeLeaf;
 
-    oppositeLeaf.parent = parent2;
-    node.parent = null;
     // parent.parent = null;
     // parent.left = null;
     // parent.right = null; // GC should work anyway
@@ -129,7 +115,7 @@ export class IncrementalBuilder<N, L> implements IBVHBuilder<N, L> {
     _findBestSibling(root, bestCost - root.area);
 
     function _findBestSibling(node: Node<N, L>, inheritedCost: number): void {
-      if (node.object) return; // TODO migliorare... no sense creare oggetto se esce subito
+      if (node.object) return;
 
       const nodeL = node.left;
       const nodeR = node.right;

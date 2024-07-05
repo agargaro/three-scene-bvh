@@ -1,9 +1,8 @@
 import { Main, PerspectiveCameraAuto } from '@three.ez/main';
 import { BoxGeometry, ConeGeometry, Intersection, LineSegments, Mesh, MeshBasicMaterial, MeshNormalMaterial, Scene, SphereGeometry, TorusGeometry } from 'three';
 import { MapControls } from 'three/examples/jsm/controls/MapControls';
-import { SceneBVH } from '../three.js/sceneBVH';
 import { BVHInspector } from '../core/inspector';
-import { SceneBVHHelper } from '../three.js/sceneBVHHelper';
+import { SceneBVH } from '../three.js/sceneBVH';
 import { PRNG } from './utils/random';
 
 /**
@@ -12,9 +11,9 @@ import { PRNG } from './utils/random';
  */
 
 const useBVH = true; // you can test performance changing this. if you set false is the native three.js frustum culling and NO raycasting.
-const count = 100;
-const animatedCount = 20;
-const halfRadius = 100; // to positioning meshes
+const count = 20000;
+const animatedCount = 0;
+const halfRadius = 5000; // to positioning meshes
 const marginBVH = 0;
 const verbose = false;
 const random = new PRNG(count);
@@ -75,12 +74,6 @@ const originalChildren = scene.children;
 const frustumResult: (Mesh | LineSegments)[] = [];
 const intersections: Intersection[] = [];
 let lastHovered: Mesh;
-let helper: SceneBVHHelper;
-
-if (useBVH) {
-  helper = new SceneBVHHelper(sceneBVH, 40, true);
-  scene.add(helper);
-}
 
 const main = new Main();
 
@@ -100,9 +93,6 @@ main.createView({
       frustumResult.length = 0;
       sceneBVH.updateCulling(camera, frustumResult);
       scene.children = frustumResult;
-
-      if (animatedCount > 0) helper.update();
-      frustumResult.push(helper);
 
       sceneBVH.raycast(main.raycaster, intersections);
     } else {
