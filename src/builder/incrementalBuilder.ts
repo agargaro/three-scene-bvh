@@ -1,17 +1,15 @@
-import { FloatArray, IBVHBuilder } from './BVH';
-import { areaBox, areaFromTwoBoxes, isBoxInsideBox, unionBox } from './boxUtils';
+import { FloatArray, IBVHBuilder, Node } from '../core/BVH';
+import { areaBox, areaFromTwoBoxes, isBoxInsideBox, unionBox } from '../utils/boxUtils';
 
-export type Node<NodeData, LeafData> = {
-  box: FloatArray;
-  parent?: Node<NodeData, LeafData>;
-  object?: LeafData;
-  left?: Node<NodeData, LeafData>;
-  right?: Node<NodeData, LeafData>;
+export type IncrementalNode<L> = Node<IncrementalNodeData<L>, L>;
+
+export type IncrementalNodeData<L> = {
+  parent?: IncrementalNode<L>;
   area?: number; // this use more memory but makes add faster
-} & NodeData;
+};
 
-export class IncrementalBuilder<N, L> implements IBVHBuilder<N, L> {
-  public root: Node<N, L> = null;
+export class IncrementalBuilder<L> implements IBVHBuilder<IncrementalNodeData<L>, L> {
+  public root: IncrementalNode<L> = null;
   protected _margin: number;
 
   constructor(margin: number) {
@@ -22,7 +20,7 @@ export class IncrementalBuilder<N, L> implements IBVHBuilder<N, L> {
     this.root = null;
   }
 
-  public insert(object: L, box: FloatArray): Node<N, L> {
+  public insert(object: L, box: FloatArray): IncrementalNode<L> {
     const leaf = this.createLeafNode(object, box);
 
     if (this.root === null) {
@@ -35,7 +33,7 @@ export class IncrementalBuilder<N, L> implements IBVHBuilder<N, L> {
     return leaf;
   }
 
-  protected insertLeaf(leaf: Node<N, L>, newParent?: Node<N, L>): void {
+  protected insertLeaf(leaf: IncrementalNode<L>, newParent?: IncrementalNode<L>): void {
     leaf.area = areaBox(leaf.box); // if only move we don't need to recalculate it?
 
     const sibling = this.findBestSibling(leaf.box, leaf.area);
@@ -65,14 +63,14 @@ export class IncrementalBuilder<N, L> implements IBVHBuilder<N, L> {
   }
 
   //update node.box before calling this function
-  public move(node: Node<N, L>): void {
+  public move(node: IncrementalNode<L>): void {
     if (isBoxInsideBox(node.box, node.parent.box)) return;
 
     const deletedNode = this.delete(node);
     this.insertLeaf(node, deletedNode);
   }
 
-  public delete(node: Node<N, L>): Node<N, L> {
+  public delete(node: IncrementalNode<L>): IncrementalNode<L> {
     const parent = node.parent;
     const parent2 = parent.parent;
 
@@ -98,23 +96,25 @@ export class IncrementalBuilder<N, L> implements IBVHBuilder<N, L> {
     return parent;
   }
 
-  protected createLeafNode(object: L, box: FloatArray): Node<N, L> {
-    return { box, object, parent: null } as Node<N, L>;
+  protected createLeafNode(object: L, box: FloatArray): IncrementalNode<L> {
+    return { box, object, parent: null, area: null };
   }
 
-  protected createInternalNode(parent: Node<N, L>, sibling: Node<N, L>, leaf: Node<N, L>): Node<N, L> {
-    return { parent, left: sibling, right: leaf, box: new Float64Array(6) } as Node<N, L>;
+  protected createInternalNode(parent: IncrementalNode<L>, sibling: IncrementalNode<L>, leaf: IncrementalNode<L>): IncrementalNode<L> {
+    return { parent, left: sibling, right: leaf, box: new Float64Array(6) };
   }
 
   // Branch and Bound
-  protected findBestSibling(leafBox: FloatArray, leafArea: number): Node<N, L> {
+  protected findBestSibling(leafBox: FloatArray, leafArea: number): IncrementalNode<L> {
     const root = this.root;
     let bestNode = root;
     let bestCost = areaFromTwoBoxes(leafBox, root.box);
 
     _findBestSibling(root, bestCost - root.area);
 
-    function _findBestSibling(node: Node<N, L>, inheritedCost: number): void {
+    return bestNode;
+
+    function _findBestSibling(node: IncrementalNode<L>, inheritedCost: number): void {
       if (node.object) return;
 
       const nodeL = node.left;
@@ -158,11 +158,11 @@ export class IncrementalBuilder<N, L> implements IBVHBuilder<N, L> {
 
       }
     }
-
-    return bestNode;
   }
 
-  protected refit(node: Node<N, L>): void {
+  protected refit(node: IncrementalNode<L>): void {
+    const margin = this._margin;
+
     do {
       const left = node.left;
       const right = node.right;
@@ -170,83 +170,80 @@ export class IncrementalBuilder<N, L> implements IBVHBuilder<N, L> {
 
       // TODO CHECK if area doesn't change, stop iterating
 
-      unionBox(left.box, right.box, nodeBox, this._margin);
+      unionBox(left.box, right.box, nodeBox, margin);
       node.area = areaBox(nodeBox);
 
       node = node.parent;
     } while (node);
   }
 
-  protected refitAndRotate(node: Node<N, L>): void {
+  protected refitAndRotate(node: IncrementalNode<L>): void {
+    const margin = this._margin;
+
     do {
       const left = node.left;
       const right = node.right;
       const nodeBox = node.box;
+      const leftBox = left.box;
+      const rightBox = right.box;
 
-      unionBox(left.box, right.box, nodeBox, this._margin);
+      unionBox(leftBox, rightBox, nodeBox, margin);
       node.area = areaBox(nodeBox);
 
-      this.rotate(node);
+      let nodeSwap1: IncrementalNode<L>;
+      let nodeSwap2: IncrementalNode<L>;
+      let bestCost = 0; // todo can we use rotatationBestCostTolerance?
+
+      if (!right.object) { // is not leaf
+        const RL = right.left;
+        const RR = right.right;
+        const rightArea = right.area;
+
+        const diffRR = rightArea - areaFromTwoBoxes(leftBox, RL.box);
+        const diffRL = rightArea - areaFromTwoBoxes(leftBox, RR.box);
+
+        if (diffRR > diffRL) {
+          if (diffRR > 0) {
+            nodeSwap1 = left;
+            nodeSwap2 = RR;
+            bestCost = diffRR;
+          }
+        } else if (diffRL > 0) {
+          nodeSwap1 = left;
+          nodeSwap2 = RL;
+          bestCost = diffRL;
+        }
+      }
+
+      if (!left.object) { // is not leaf
+        const LL = left.left;
+        const LR = left.right;
+        const leftArea = left.area;
+
+        const diffLR = leftArea - areaFromTwoBoxes(rightBox, LL.box);
+        const diffLL = leftArea - areaFromTwoBoxes(rightBox, LR.box);
+
+        if (diffLR > diffLL) {
+          if (diffLR > bestCost) {
+            nodeSwap1 = right;
+            nodeSwap2 = LR;
+          }
+        } else if (diffLL > bestCost) {
+          nodeSwap1 = right;
+          nodeSwap2 = LL;
+        }
+      }
+
+      if (nodeSwap1) {
+        this.swap(nodeSwap1, nodeSwap2);
+      }
 
       node = node.parent;
     } while (node);
   }
 
-  protected rotate(node: Node<N, L>): void {
-    const L = node.left;
-    const R = node.right;
-
-    let nodeSwap1: Node<N, L>;
-    let nodeSwap2: Node<N, L>;
-    let bestCost = 0; // todo can we use rotatationBestCostTolerance?
-
-    if (!R.object) {
-      //is not leaf
-      const RL = R.left;
-      const RR = R.right;
-
-      const diffRR = R.area - areaFromTwoBoxes(L.box, RL.box);
-      const diffRL = R.area - areaFromTwoBoxes(L.box, RR.box);
-
-      if (diffRR > diffRL) {
-        if (diffRR > 0) {
-          nodeSwap1 = L;
-          nodeSwap2 = RR;
-          bestCost = diffRR;
-        }
-      } else if (diffRL > 0) {
-        nodeSwap1 = L;
-        nodeSwap2 = RL;
-        bestCost = diffRL;
-      }
-    }
-
-    if (!L.object) {
-      //is not leaf
-      const LL = L.left;
-      const LR = L.right;
-
-      const diffLR = L.area - areaFromTwoBoxes(R.box, LL.box);
-      const diffLL = L.area - areaFromTwoBoxes(R.box, LR.box);
-
-      if (diffLR > diffLL) {
-        if (diffLR > bestCost) {
-          nodeSwap1 = R;
-          nodeSwap2 = LR;
-        }
-      } else if (diffLL > bestCost) {
-        nodeSwap1 = R;
-        nodeSwap2 = LL;
-      }
-    }
-
-    if (nodeSwap1) {
-      this.swap(nodeSwap1, nodeSwap2);
-    }
-  }
-
   // this works only for rotation
-  protected swap(A: Node<N, L>, B: Node<N, L>): void {
+  protected swap(A: IncrementalNode<L>, B: IncrementalNode<L>): void {
     const parentA = A.parent;
     const parentB = B.parent;
     const parentBox = parentB.box;
@@ -262,6 +259,16 @@ export class IncrementalBuilder<N, L> implements IBVHBuilder<N, L> {
 
     unionBox(parentB.left.box, parentB.right.box, parentBox, this._margin);
     parentB.area = areaBox(parentBox);
+  }
+
+  public createFromArray(objects: L[], boxArray: FloatArray[]): IncrementalNode<L> {
+    const count = objects.length;
+
+    for (let i = 0; i < count; i++) {
+      this.insert(objects[i], boxArray[i]);
+    }
+
+    return this.root;
   }
 
 }

@@ -1,4 +1,4 @@
-import { areaBox } from './boxUtils';
+import { areaBox } from '../utils/boxUtils';
 
 export interface IBVHBuilderPacked {
   rootIndex: number;
@@ -385,7 +385,7 @@ export class IncrementalBuilderPacked implements IBVHBuilderPacked {
     return 2 * (d0 * d1 + d1 * d2 + d2 * d0);
   }
 
-  protected areaFromTwoBoxes(leafBox: FloatArray, offset: number): number {
+  protected areaFromTwoBoxes(leafBox: Float32Array, offset: number): number {
     const a = this.bufferFloat32;
     const offsetBox = offset * _nodeSize + _boxOffset;
 

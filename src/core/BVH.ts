@@ -1,12 +1,12 @@
-import { intersectRayBox } from "./intersectUtils";
+import { intersectRayBox } from "../utils/intersectUtils";
 
 export type FloatArray = Float32Array | Float64Array;
 
 export type Node<NodeData, LeafData> = {
   box: FloatArray; // [minX, maxX, minY, maxY, minZ, maxZ]
-  object?: LeafData;
   left?: Node<NodeData, LeafData>;
   right?: Node<NodeData, LeafData>;
+  object?: LeafData;
 } & NodeData;
 
 // export type InsertElement<L> = { object: L, box: FloatArray };
@@ -15,6 +15,7 @@ export interface IBVHBuilder<N, L> {
   root: Node<N, L>;
   insert(object: L, box: FloatArray): Node<N, L>;
   // insertRange(items: InsertElement<L>[]): Node<N, L>[];
+  createFromArray(objects: L[], boxArray: FloatArray[]): Node<N, L>;
   move(node: Node<N, L>): void;
   delete(node: Node<N, L>): Node<N, L>;
   clear(): void;
@@ -78,12 +79,12 @@ export class BVH<N, L> {
 
     function _intersectRay(node: Node<N, L>): void {
       if (!intersectRayBox(node.box, origin, _dirInv, _sign, near, far)) return;
-  
+
       if (node.object) {
         result.push(node.object);
         return;
       }
-  
+
       _intersectRay(node.left);
       _intersectRay(node.right);
     }

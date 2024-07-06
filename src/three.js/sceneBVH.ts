@@ -1,8 +1,9 @@
 import { Camera, Intersection, Matrix4, Mesh, Object3D, Ray, Raycaster } from 'three';
-import { BVH, Node } from '../core/BVH';
-import { IncrementalBuilder } from '../core/incrementalBuilder';
+import { BVH, FloatArray, IBVHBuilder, Node } from '../core/BVH';
+import { IncrementalBuilder } from '../builder/incrementalBuilder';
 import { Frustum } from './frustum';
 import { ascSortIntersection, getBox } from './utils';
+import { TopDownBuilder } from '../builder/topDownBuilder';
 
 type N = {};
 type L = Object3D;
@@ -12,14 +13,26 @@ export class SceneBVH {
   public verbose: boolean;
   protected _frustum = new Frustum();
 
-  constructor(margin = 5, verbose = false) {
-    this.bvh = new BVH(new IncrementalBuilder(margin));
+  constructor(builder: IBVHBuilder<N, L>, verbose = false) {
+    this.bvh = new BVH(builder);
     this.verbose = verbose;
   }
 
   public insert(object: Mesh): void {  // TODO fix if don't use only mesh
     const node = this.bvh.insert(object, getBox(object));
     _map.set(object, node);
+  }
+
+  public insertRange(objects: Mesh[]): void {  // TODO fix if don't use only mesh
+    const count = objects.length;
+    const boxes: FloatArray[] = new Array(objects.length);
+
+    for (let i = 0; i < count; i++) {
+      boxes[i] = getBox(objects[i], new Float32Array(6));
+    }
+
+    this.bvh.builder.createFromArray(objects, boxes);
+    // todo add map
   }
 
   public move(object: Mesh): void {
@@ -34,42 +47,50 @@ export class SceneBVH {
     // _map.delete(object); do only if delete and not move
   }
 
-  public updateCulling(camera: Camera, result: Object3D[]): void {
+  public updateCulling(camera: Camera, result: Object3D[]): number {
+    const frustum = this._frustum;
+    let count = 0;
+
     _projScreenMatrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
 
     this.verbose && console.time('culling');
 
-    this._frustum.setFromProjectionMatrix(_projScreenMatrix);
-    this.traverseVisibility(this.bvh.root, 0b111111, result);
+    frustum.setFromProjectionMatrix(_projScreenMatrix);
+    traverseVisibility(this.bvh.root, 0b111111);
 
     this.verbose && console.timeEnd('culling');
-  }
 
-  private traverseVisibility(node: Node<N, L>, mask: number, result: Object3D[]): void {
-    mask = this._frustum.intesectsBoxMask(node.box, mask);
+    return count;
 
-    if (mask < 0) return; // -1 = out
+    function traverseVisibility(node: Node<N, L>, mask: number): void {
+      mask = frustum.intesectsBoxMask(node.box, mask);
 
-    if (mask === 0) return this.showAll(node, result); // 0 = in
+      if (mask < 0) return; // -1 = out
 
-    // 1+ = intersect
-    if (node.object) {
-      result.push(node.object);
-      return;
+      if (mask === 0) { // 0 = in
+        showAll(node);
+        return;
+      }
+
+      // 1+ = intersect
+      if (node.object) {
+        result[count++] = node.object;
+        return;
+      }
+
+      traverseVisibility(node.left, mask);
+      traverseVisibility(node.right, mask);
     }
 
-    this.traverseVisibility(node.left, mask, result);
-    this.traverseVisibility(node.right, mask, result);
-  }
+    function showAll(node: Node<N, L>): void {
+      if (node.object) {
+        result[count++] = node.object;
+        return;
+      }
 
-  private showAll(node: Node<N, L>, result: Object3D[]): void {
-    if (node.object) {
-      result.push(node.object);
-      return;
+      showAll(node.left);
+      showAll(node.right);
     }
-
-    this.showAll(node.left, result);
-    this.showAll(node.right, result);
   }
 
   public raycast(raycaster: Raycaster, result: Intersection[]): void {

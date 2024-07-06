@@ -1,31 +1,35 @@
 import { Main, PerspectiveCameraAuto } from '@three.ez/main';
-import { BoxGeometry, ConeGeometry, Intersection, LineSegments, Mesh, MeshBasicMaterial, MeshNormalMaterial, Scene, SphereGeometry, TorusGeometry } from 'three';
+import { BoxGeometry, ConeGeometry, Intersection, LineSegments, Mesh, MeshBasicMaterial, MeshNormalMaterial, Object3D, Scene, SphereGeometry, TorusGeometry } from 'three';
 import { MapControls } from 'three/examples/jsm/controls/MapControls';
-import { BVHInspector } from '../core/inspector';
+import { BVHInspector } from '../utils/inspector';
 import { SceneBVH } from '../three.js/sceneBVH';
 import { PRNG } from './utils/random';
+import { TopDownBuilder } from '../builder/topDownBuilder';
+import { IncrementalBuilder } from '../builder/incrementalBuilder';
 
 /**
  * In this example, a BVH is used to perform frustum culling and raycasting.
  * START CAN BE A LITTLE SLOW...
- */
-
+*/
 const useBVH = true; // you can test performance changing this. if you set false is the native three.js frustum culling and NO raycasting.
-const count = 20000;
+const marginBVH = 0;
+const builder = new TopDownBuilder<Object3D>();
+// const builder = new IncrementalBuilder<Object3D>(marginBVH);
+const count = 80000;
 const animatedCount = 0;
 const halfRadius = 5000; // to positioning meshes
-const marginBVH = 0;
 const verbose = false;
 const random = new PRNG(count);
+const statsFPSRefresh = 5;
 
-const sceneBVH = useBVH ? new SceneBVH(marginBVH, verbose) : null;
+const sceneBVH = useBVH ? new SceneBVH(builder, verbose) : null;
 
 const scene = new Scene();
 scene.interceptByRaycaster = false; // disable three.ez events
 scene.matrixAutoUpdate = false; // if I don't put this there's a bug... already opened in three.js repo
 scene.matrixWorldAutoUpdate = false;
 
-const camera = new PerspectiveCameraAuto(70, 0.1, 10000).translateZ(500);
+const camera = new PerspectiveCameraAuto(70).translateZ(100);
 
 const material = new MeshNormalMaterial();
 const materialHover = new MeshBasicMaterial({ color: 'yellow' });
@@ -61,14 +65,12 @@ for (let i = 0; i < count; i++) {
 const start = performance.now();
 
 if (useBVH) {
-  const children = scene.children;
-
-  for (let i = 0, l = children.length; i < l; i++) {
-    sceneBVH.insert(children[i] as Mesh);
-  }
+  sceneBVH.insertRange(scene.children as Mesh[]);
 }
 
-const time = performance.now() - start;
+const buildTime = performance.now() - start;
+let raycastingTime: number;
+let frustumCullingTime: number;
 
 const originalChildren = scene.children;
 const frustumResult: (Mesh | LineSegments)[] = [];
@@ -91,13 +93,16 @@ main.createView({
 
     if (useBVH) {
       frustumResult.length = 0;
+      frustumCullingTime -= performance.now();
       sceneBVH.updateCulling(camera, frustumResult);
+      frustumCullingTime += performance.now();
       scene.children = frustumResult;
-
-      sceneBVH.raycast(main.raycaster, intersections);
-    } else {
-      main.raycaster.intersectObjects(scene.children, false, intersections);
     }
+
+    raycastingTime -= performance.now();
+    if (useBVH) sceneBVH.raycast(main.raycaster, intersections);
+    else main.raycaster.intersectObjects(scene.children, false, intersections);
+    raycastingTime += performance.now();
 
     const intersected = intersections[0]?.object as Mesh;
 
@@ -111,7 +116,21 @@ main.createView({
   onAfterRender: () => {
     scene.children = originalChildren;
 
-    document.getElementById("drawCall").innerText = `drawCall: ${main.renderer.info.render.calls}`;
+    if (main.renderer.info.render.frame % statsFPSRefresh !== 0) return;
+
+    frustumCullingTime /= statsFPSRefresh;
+    raycastingTime /= statsFPSRefresh;
+
+    document.getElementById("renderInfo").innerText =
+      `drawCall        : ${main.renderer.info.render.calls}\n` +
+      `raycasting      : ${raycastingTime.toFixed(2)} ms\n`;
+
+    if (useBVH) {
+      document.getElementById("renderInfo").innerText += `frustum culling : ${frustumCullingTime.toFixed(2)} ms\n`;
+    }
+
+    frustumCullingTime = 0;
+    raycastingTime = 0;
   }
 });
 
@@ -124,8 +143,9 @@ if (useBVH) {
   const inspector = new BVHInspector(sceneBVH.bvh);
 
   document.getElementById("info").innerText =
-    `construction time  : ${time.toFixed(2)}ms\n` +
+    `construction time  : ${buildTime.toFixed(2)}ms\n` +
     `surface area score : ${inspector.surfaceScore.toFixed(2)}\n` +
+    `efficiency         : ${inspector.efficiency.toFixed(2)}\n` +
     `total nodes        : ${inspector.totalNodes}\n` +
     `total leaf nodes   : ${inspector.totalLeafNodes}\n` +
     `min / max depth    : ${inspector.minDepth} / ${inspector.maxDepth}\n`;

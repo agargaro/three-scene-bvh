@@ -1,4 +1,4 @@
-import { FloatArray } from './BVH';
+import { FloatArray } from '../core/BVH';
 
 export function unionBox(A: FloatArray, B: FloatArray, target: FloatArray, margin: number): void {
   target[0] = (A[0] > B[0] ? B[0] : A[0]) - margin;
@@ -58,4 +58,13 @@ export function areaFromTwoBoxes(A: FloatArray, B: FloatArray): number {
   const d2 = maxZ - minZ;
 
   return 2 * (d0 * d1 + d1 * d2 + d2 * d0);
+}
+
+export function getLongestAxis(box: FloatArray): number {
+  const xSize = box[1] - box[0];
+  const ySize = box[3] - box[2];
+  const zSize = box[5] - box[4];
+
+  if (xSize > ySize) return xSize > zSize ? 0 : 2;
+  return ySize > zSize ? 1 : 2;
 }
