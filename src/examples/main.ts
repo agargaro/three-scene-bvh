@@ -13,8 +13,8 @@ import { IncrementalBuilder } from '../builder/incrementalBuilder';
 */
 const useBVH = true; // you can test performance changing this. if you set false is the native three.js frustum culling and NO raycasting.
 const marginBVH = 0;
-const builder = new TopDownBuilder<Object3D>();
-// const builder = new IncrementalBuilder<Object3D>(marginBVH);
+// const builder = new TopDownBuilder<Object3D>();
+const builder = new IncrementalBuilder<Object3D>(marginBVH);
 const count = 80000;
 const animatedCount = 0;
 const halfRadius = 5000; // to positioning meshes
