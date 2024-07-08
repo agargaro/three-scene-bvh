@@ -6,6 +6,7 @@ import { SceneBVH } from '../three.js/sceneBVH';
 import { PRNG } from './utils/random';
 import { TopDownBuilder } from '../builder/topDownBuilder';
 import { IncrementalBuilder } from '../builder/incrementalBuilder';
+import { HybridBuilder } from '../builder/hybridBuilder';
 
 /**
  * In this example, a BVH is used to perform frustum culling and raycasting.
@@ -14,8 +15,9 @@ import { IncrementalBuilder } from '../builder/incrementalBuilder';
 const useBVH = true; // you can test performance changing this. if you set false is the native three.js frustum culling and NO raycasting.
 const marginBVH = 0;
 // const builder = new TopDownBuilder<Object3D>();
-const builder = new IncrementalBuilder<Object3D>(marginBVH);
-const count = 80000;
+// const builder = new IncrementalBuilder<Object3D>(marginBVH);
+const builder = new HybridBuilder<Object3D>(marginBVH);
+const count = 100000;
 const animatedCount = 0;
 const halfRadius = 5000; // to positioning meshes
 const verbose = false;
@@ -69,6 +71,13 @@ if (useBVH) {
 }
 
 const buildTime = performance.now() - start;
+
+// for (let i = 0; i < 10; i++) {
+//   console.time("test");
+//   sceneBVH.insertRange(scene.children as Mesh[]);
+//   console.timeEnd("test");
+// }
+
 let raycastingTime: number;
 let frustumCullingTime: number;
 

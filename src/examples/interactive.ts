@@ -1,26 +1,29 @@
 import { Main, PerspectiveCameraAuto } from '@three.ez/main';
-import { BoxGeometry, ConeGeometry, Mesh, MeshNormalMaterial, Scene, SphereGeometry, TorusGeometry } from 'three';
+import { BoxGeometry, ConeGeometry, Mesh, MeshNormalMaterial, Object3D, Scene, SphereGeometry, TorusGeometry } from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import { SceneBVH } from '../three.js/sceneBVH';
 import { SceneBVHHelper } from '../three.js/sceneBVHHelper';
 import { PRNG } from './utils/random';
+import { HybridBuilder } from '../builder/hybridBuilder';
 
-const count = 20;
+const count = 100;
 const halfRadius = 50; // to positioning meshes
 const marginBVH = 0;
 const random = new PRNG(count);
 
-const sceneBVH = new SceneBVH(marginBVH, false);
+const builder = new HybridBuilder<Object3D>(marginBVH);
+const sceneBVH = new SceneBVH(builder, false);
 
 const scene = new Scene();
-scene.activeSmartRendering();
+scene.activeSmartRendering(); // render only if necessary
 scene.matrixAutoUpdate = false;
 scene.matrixWorldAutoUpdate = false;
 
 scene.on('drag', (e) => {
   const mesh = e.target as Mesh;
-  mesh.updateMatrix();
-  mesh.updateWorldMatrix(false, false);
+
+  mesh.matrix.compose(mesh.position, mesh.quaternion, mesh.scale);
+  mesh.matrixWorld.copy(mesh.matrix);
 
   sceneBVH.move(mesh); // update mesh inside bvh
   helper.update();
@@ -33,7 +36,7 @@ const material = new MeshNormalMaterial();
 
 for (let i = 0; i < count; i++) {
   const mesh = new Mesh(geometries[i % geometries.length], material);
-  
+
   mesh.draggable = true;
 
   mesh.position.x = random.range(-halfRadius, halfRadius);
@@ -42,8 +45,8 @@ for (let i = 0; i < count; i++) {
 
   mesh.quaternion.random();
 
-  mesh.updateMatrix();
-  mesh.updateWorldMatrix(false, false);
+  mesh.matrix.compose(mesh.position, mesh.quaternion, mesh.scale);
+  mesh.matrixWorld.copy(mesh.matrix);
 
   scene.add(mesh);
 
@@ -55,15 +58,7 @@ helper.interceptByRaycaster = false;
 scene.add(helper);
 
 const main = new Main();
-main.createView({
-  scene,
-  camera,
-  backgroundColor: 'white',
-  onBeforeRender: () => {
-    camera.updateMatrix();
-    camera.updateWorldMatrix(false, false);
-  }
-});
+main.createView({ scene, camera, backgroundColor: 'black' });
 
 const controls = new OrbitControls(camera, main.renderer.domElement);
 scene.on(['pointerdown', 'pointerup', 'dragend'], (e) => (controls.enabled = e.type === 'pointerdown' ? e.target === scene : true));
