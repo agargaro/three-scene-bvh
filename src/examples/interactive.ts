@@ -26,7 +26,6 @@ scene.on('drag', (e) => {
   mesh.matrixWorld.copy(mesh.matrix);
 
   sceneBVH.move(mesh); // update mesh inside bvh
-  // helper.update();
 });
 
 const camera = new PerspectiveCameraAuto(70).translateZ(halfRadius * 2);
@@ -69,7 +68,7 @@ helper.interceptByRaycaster = false;
 scene.add(helper);
 
 const main = new Main();
-main.createView({ scene, camera, backgroundColor: 'black' });
+main.createView({ scene, camera, backgroundColor: 'black', onBeforeRender: () => controls.update() });
 
 const controls = new OrbitControls(camera, main.renderer.domElement);
 scene.on(['pointerdown', 'pointerup', 'dragend'], (e) => (controls.enabled = e.type === 'pointerdown' ? e.target === scene : true));
