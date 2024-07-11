@@ -1,7 +1,8 @@
-import { FloatArray, IBVHBuilder, Node } from '../core/BVH';
+import { BVHNode, FloatArray } from '../core/BVHNode';
 import { getLongestAxis } from '../utils/boxUtils';
+import { IBVHBuilder, onLeafCreationCallback } from './IBVHBuilder';
 
-export type TopDownNode<L> = Node<{}, L>;
+export type TopDownNode<L> = BVHNode<{}, L>;
 
 export class TopDownBuilder<L> implements IBVHBuilder<{}, L> {
   public root: TopDownNode<L> = null;
@@ -139,6 +140,10 @@ export class TopDownBuilder<L> implements IBVHBuilder<{}, L> {
     throw new Error('Method not implemented.');
   }
 
+  public insertRange(objects: L[], boxes: FloatArray[], onLeafCreation?: onLeafCreationCallback<{}, L>): void {
+    throw new Error('Method not implemented.');
+  }
+
   public move(node: TopDownNode<L>): void {
     throw new Error('Method not implemented.');
   }
@@ -148,7 +153,7 @@ export class TopDownBuilder<L> implements IBVHBuilder<{}, L> {
   }
 
   public clear(): void {
-    throw new Error('Method not implemented.');
+    this.root = null;
   }
 
 }

@@ -1,5 +1,4 @@
-import { FloatArray } from "../core/BVH";
-
+import { FloatArray } from "../core/BVHNode";
 
 export function intersectRayBox(box: FloatArray, origins: FloatArray, dirsInv: FloatArray, signs: Uint8Array, near: number, far: number): boolean {
     // X axis

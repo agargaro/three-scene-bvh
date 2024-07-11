@@ -1,7 +1,8 @@
-import { FloatArray, IBVHBuilder, Node } from '../core/BVH';
+import { BVHNode, FloatArray } from '../core/BVHNode';
 import { areaBox, areaFromTwoBoxes, getLongestAxis, isBoxInsideBox, unionBox } from '../utils/boxUtils';
+import { IBVHBuilder, onLeafCreationCallback } from './IBVHBuilder';
 
-export type HybridNode<L> = Node<HybridNodeData<L>, L>;
+export type HybridNode<L> = BVHNode<HybridNodeData<L>, L>;
 
 export type HybridNodeData<L> = {
   parent?: HybridNode<L>;
@@ -16,7 +17,7 @@ export class HybridBuilder<L> implements IBVHBuilder<HybridNodeData<L>, L> {
     this._margin = margin;
   }
 
-  public createFromArray(objects: L[], boxes: FloatArray[]): HybridNode<L> {
+  public createFromArray(objects: L[], boxes: FloatArray[], onLeafCreation?: onLeafCreationCallback<HybridNodeData<L>, L>): void {
     const margin = this._margin;
     const maxCount = boxes.length;
     const typeArray = boxes[0].BYTES_PER_ELEMENT === 4 ? Float32Array : Float64Array;
@@ -26,12 +27,14 @@ export class HybridBuilder<L> implements IBVHBuilder<HybridNodeData<L>, L> {
 
     this.root = buildNode(0, maxCount, null);
 
-    return this.root;
+    return; // is this useless probably TODO remove
 
     function buildNode(offset: number, count: number, parent: HybridNode<L>): HybridNode<L> {
       if (count === 1) {
         const box = boxes[offset];
-        return { box, object: objects[offset], area: areaBox(box), parent };
+        const node = { box, object: objects[offset], area: areaBox(box), parent };
+        if (onLeafCreation) onLeafCreation(node);
+        return node;
       }
 
       const box = computeBoxCentroid(offset, count);
@@ -42,15 +45,12 @@ export class HybridBuilder<L> implements IBVHBuilder<HybridNodeData<L>, L> {
 
       if (leftEndOffset === offset || leftEndOffset === offset + count) {
         // TROVARE ALTRA WAY TO SPLIT @todoooooooooo
-        debugger;
-        return { box, object: null, area: areaBox(box) };
+        // onLeafCreation TODO
+        throw new Error('SPLIT FAILED.');
+        // return { box, object: null, area: areaBox(box) };
       }
 
-      const node: HybridNode<L> = {
-        box,
-        area: areaBox(box),
-        parent
-      };
+      const node: HybridNode<L> = { box, area: areaBox(box), parent };
 
       node.left = buildNode(offset, leftEndOffset - offset, node);
       node.right = buildNode(leftEndOffset, count - leftEndOffset + offset, node);
@@ -156,10 +156,6 @@ export class HybridBuilder<L> implements IBVHBuilder<HybridNodeData<L>, L> {
     }
   }
 
-  public clear(): void {
-    this.root = null;
-  }
-
   public insert(object: L, box: FloatArray): HybridNode<L> {
     const leaf = this.createLeafNode(object, box);
 
@@ -173,33 +169,8 @@ export class HybridBuilder<L> implements IBVHBuilder<HybridNodeData<L>, L> {
     return leaf;
   }
 
-  protected insertLeaf(leaf: HybridNode<L>, newParent?: HybridNode<L>): void {
-    leaf.area = areaBox(leaf.box); // if only move we don't need to recalculate it?
-
-    const sibling = this.findBestSibling(leaf.box, leaf.area); // TODO change it here
-
-    const oldParent = sibling.parent;
-
-    if (!newParent) {
-      newParent = this.createInternalNode(oldParent, sibling, leaf);
-    } else {
-      newParent.parent = oldParent;
-      newParent.left = sibling;
-      newParent.right = leaf;
-    }
-
-    sibling.parent = newParent;
-    leaf.parent = newParent;
-
-    if (oldParent === null) {
-      // The sibling was the root
-      this.root = newParent;
-    } else {
-      if (oldParent.left == sibling) oldParent.left = newParent;
-      else oldParent.right = newParent;
-    }
-
-    this.refitAndRotate(newParent);
+  public insertRange(objects: L[], boxes: FloatArray[], onLeafCreation?: onLeafCreationCallback<HybridNodeData<L>, L>): void {
+    throw new Error('Method not implemented.');
   }
 
   //update node.box before calling this function
@@ -234,6 +205,40 @@ export class HybridBuilder<L> implements IBVHBuilder<HybridNodeData<L>, L> {
     this.refit(parent2); // i don't think we need rotation here
 
     return parent;
+  }
+
+  public clear(): void {
+    this.root = null;
+  }
+
+  protected insertLeaf(leaf: HybridNode<L>, newParent?: HybridNode<L>): void {
+    const area = !newParent ? areaBox(leaf.box) : leaf.area;
+
+    const sibling = this.findBestSibling(leaf.box, area);
+
+    const oldParent = sibling.parent;
+
+    if (!newParent) {
+      leaf.area = area;
+      newParent = this.createInternalNode(oldParent, sibling, leaf);
+    } else {
+      newParent.parent = oldParent;
+      newParent.left = sibling;
+      newParent.right = leaf;
+    }
+
+    sibling.parent = newParent;
+    leaf.parent = newParent;
+
+    if (oldParent === null) {
+      // The sibling was the root
+      this.root = newParent;
+    } else {
+      if (oldParent.left == sibling) oldParent.left = newParent;
+      else oldParent.right = newParent;
+    }
+
+    this.refitAndRotate(newParent);
   }
 
   protected createLeafNode(object: L, box: FloatArray): HybridNode<L> {

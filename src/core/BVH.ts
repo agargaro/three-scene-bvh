@@ -1,53 +1,49 @@
+import { IBVHBuilder, onLeafCreationCallback } from "../builder/IBVHBuilder";
+import { CoordinateSystem, Frustum, WebGLCoordinateSystem } from "../utils/frustum";
 import { intersectRayBox } from "../utils/intersectUtils";
-
-export type FloatArray = Float32Array | Float64Array;
-
-export type Node<NodeData, LeafData> = {
-  box: FloatArray; // [minX, maxX, minY, maxY, minZ, maxZ]
-  left?: Node<NodeData, LeafData>;
-  right?: Node<NodeData, LeafData>;
-  object?: LeafData;
-} & NodeData;
-
-// export type InsertElement<L> = { object: L, box: FloatArray };
-
-export interface IBVHBuilder<N, L> {
-  root: Node<N, L>;
-  insert(object: L, box: FloatArray): Node<N, L>;
-  // insertRange(items: InsertElement<L>[]): Node<N, L>[];
-  createFromArray(objects: L[], boxArray: FloatArray[]): Node<N, L>;
-  move(node: Node<N, L>): void;
-  delete(node: Node<N, L>): Node<N, L>;
-  clear(): void;
-}
+import { BVHNode, FloatArray } from "./BVHNode";
 
 export class BVH<N, L> {
   public builder: IBVHBuilder<N, L>;
+  public frustum: Frustum;
 
-  public get root(): Node<N, L> {
+  public get root(): BVHNode<N, L> {
     return this.builder.root;
   }
 
-  constructor(builder: IBVHBuilder<N, L>) {
+  constructor(builder: IBVHBuilder<N, L>, coordinateSystem: CoordinateSystem = WebGLCoordinateSystem) {
     this.builder = builder;
+    this.frustum = new Frustum(coordinateSystem);
   }
 
-  public insert(object: L, box: FloatArray): Node<N, L> {
+  public createFromArray(objects: L[], boxes: FloatArray[], onLeafCreation?: onLeafCreationCallback<N, L>): void {
+    this.builder.createFromArray(objects, boxes, onLeafCreation);
+  }
+
+  public insert(object: L, box: FloatArray): BVHNode<N, L> {
     return this.builder.insert(object, box);
   }
 
-  public move(node: Node<N, L>): void {
+  public insertRange(objects: L[], boxes: FloatArray[], onLeafCreation?: onLeafCreationCallback<N, L>): void {
+    this.builder.insertRange(objects, boxes, onLeafCreation);
+  }
+
+  public move(node: BVHNode<N, L>): void {
     this.builder.move(node);
   }
 
-  public delete(node: Node<N, L>): void {
-    this.builder.delete(node);
+  public delete(node: BVHNode<N, L>): BVHNode<N, L> {
+    return this.builder.delete(node);
   }
 
-  public traverse(callback: (node: Node<N, L>, depth: number) => boolean): void {
+  public clear(): void {
+    this.builder.clear();
+  }
+
+  public traverse(callback: (node: BVHNode<N, L>, depth: number) => boolean): void {
     _traverse(this.root, 0);
 
-    function _traverse(node: Node<N, L>, depth: number): void {
+    function _traverse(node: BVHNode<N, L>, depth: number): void {
 
       if (node.object) { // is leaf
         callback(node, depth);
@@ -72,12 +68,11 @@ export class BVH<N, L> {
     _sign[1] = _dirInv[1] < 0 ? 1 : 0;
     _sign[2] = _dirInv[2] < 0 ? 1 : 0;
 
-    // use inner function
     _intersectRay(this.root);
 
     return result;
 
-    function _intersectRay(node: Node<N, L>): void {
+    function _intersectRay(node: BVHNode<N, L>): void {
       if (!intersectRayBox(node.box, origin, _dirInv, _sign, near, far)) return;
 
       if (node.object) {
@@ -87,6 +82,42 @@ export class BVH<N, L> {
 
       _intersectRay(node.left);
       _intersectRay(node.right);
+    }
+  }
+
+  public frustumCulling(projectionMatrix: FloatArray | number[], result: L[] = []): void {
+    const frustum = this.frustum.setFromProjectionMatrix(projectionMatrix);
+
+    traverseVisibility(this.root, 0b111111);
+
+    function traverseVisibility(node: BVHNode<N, L>, mask: number): void {
+      mask = frustum.intesectsBoxMask(node.box, mask);
+
+      if (mask < 0) return; // -1 = out
+
+      if (mask === 0) { // 0 = in
+        showAll(node);
+        return;
+      }
+
+      // 1+ = intersect
+      if (node.object) {
+        result.push(node.object);
+        return;
+      }
+
+      traverseVisibility(node.left, mask);
+      traverseVisibility(node.right, mask);
+    }
+
+    function showAll(node: BVHNode<N, L>): void {
+      if (node.object) {
+        result.push(node.object);
+        return;
+      }
+
+      showAll(node.left);
+      showAll(node.right);
     }
   }
 

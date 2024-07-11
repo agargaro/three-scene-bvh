@@ -1,82 +1,80 @@
 import { Main, PerspectiveCameraAuto } from '@three.ez/main';
 import { BoxGeometry, ConeGeometry, Intersection, LineSegments, Mesh, MeshBasicMaterial, MeshNormalMaterial, Object3D, Scene, SphereGeometry, TorusGeometry } from 'three';
 import { MapControls } from 'three/examples/jsm/controls/MapControls';
-import { BVHInspector } from '../utils/inspector';
-import { SceneBVH } from '../three.js/sceneBVH';
-import { PRNG } from './utils/random';
-import { TopDownBuilder } from '../builder/topDownBuilder';
-import { IncrementalBuilder } from '../builder/incrementalBuilder';
 import { HybridBuilder } from '../builder/hybridBuilder';
+import { SceneBVH } from '../three.js/sceneBVH';
+import { BVHInspector } from '../utils/inspector';
+import { PRNG } from './utils/random';
 
 /**
  * In this example, a BVH is used to perform frustum culling and raycasting.
  * START CAN BE A LITTLE SLOW...
 */
+
 const useBVH = true; // you can test performance changing this. if you set false is the native three.js frustum culling and NO raycasting.
-const marginBVH = 0;
-// const builder = new TopDownBuilder<Object3D>();
-// const builder = new IncrementalBuilder<Object3D>(marginBVH);
-const builder = new HybridBuilder<Object3D>(marginBVH);
 const count = 100000;
-const animatedCount = 0;
-const halfRadius = 5000; // to positioning meshes
-const verbose = false;
+const animatedCount = 10000;
+const halfRadius = 20000; // to positioning meshes
+const marginBVH = halfRadius / 100;
+const builder = new HybridBuilder<Object3D>(marginBVH);
 const random = new PRNG(count);
 const statsFPSRefresh = 5;
+const meshes: Mesh[] = new Array(count);
 
-const sceneBVH = useBVH ? new SceneBVH(builder, verbose) : null;
+const sceneBVH = useBVH ? new SceneBVH(builder) : null;
 
 const scene = new Scene();
 scene.interceptByRaycaster = false; // disable three.ez events
-scene.matrixAutoUpdate = false; // if I don't put this there's a bug... already opened in three.js repo
+scene.matrixAutoUpdate = false;
 scene.matrixWorldAutoUpdate = false;
 
-const camera = new PerspectiveCameraAuto(70).translateZ(100);
+const camera = new PerspectiveCameraAuto(70, 0.1, 3000).translateZ(100);
 
 const material = new MeshNormalMaterial();
 const materialHover = new MeshBasicMaterial({ color: 'yellow' });
 
 const geometries = [new BoxGeometry(10, 10, 10), new SphereGeometry(5, 15, 15), new ConeGeometry(5, 10, 15, 15), new TorusGeometry(5, 1, 15, 15)];
 
-
 for (let i = 0; i < count; i++) {
   const mesh = new Mesh(geometries[i % geometries.length], material);
   mesh.frustumCulled = !useBVH;
 
-  mesh.position.x = random.range(-halfRadius, halfRadius);
-  mesh.position.y = random.range(-halfRadius, halfRadius);
-  mesh.position.z = random.range(-halfRadius, halfRadius);
+  const userData = mesh.userData;
 
-  mesh.updateMatrix();
-  mesh.updateWorldMatrix(false, false);
+  const r = userData.r = random.range(halfRadius * 0.05, halfRadius * 2);
+  const phi = userData.phi = random.range(0, Math.PI * 2);
+  const theta = userData.theta = random.range(0, Math.PI * 2);
+
+  mesh.position.setFromSphericalCoords(r, phi, theta);
+
+  mesh.matrix.setPosition(mesh.position);
+  mesh.matrixWorld.copy(mesh.matrix);
 
   scene.add(mesh);
-
-  if (animatedCount <= i) continue;
-
-  mesh.on('animate', (e) => {
-    mesh.position.x += e.delta * 10;
-
-    mesh.updateMatrix();
-    mesh.updateWorldMatrix(false, false);
-
-    if (useBVH) sceneBVH.move(mesh);
-  });
+  meshes[i] = mesh;
 }
 
 const start = performance.now();
 
 if (useBVH) {
-  sceneBVH.insertRange(scene.children as Mesh[]);
+  sceneBVH.createFromArray(scene.children as Mesh[]);
 }
 
 const buildTime = performance.now() - start;
 
-// for (let i = 0; i < 10; i++) {
-//   console.time("test");
-//   sceneBVH.insertRange(scene.children as Mesh[]);
-//   console.timeEnd("test");
-// }
+scene.on('animate', (e) => {
+  for (let i = 0; i < animatedCount; i++) {
+    const mesh = meshes[i];
+    const userData = mesh.userData;
+
+    mesh.position.setFromSphericalCoords(userData.r, userData.phi + e.total * 0.01, userData.theta + e.total * 0.01);
+
+    mesh.matrix.setPosition(mesh.position);
+    mesh.matrixWorld.copy(mesh.matrix);
+
+    if (useBVH) sceneBVH.move(mesh);
+  }
+});
 
 let raycastingTime: number;
 let frustumCullingTime: number;
@@ -103,7 +101,7 @@ main.createView({
     if (useBVH) {
       frustumResult.length = 0;
       frustumCullingTime -= performance.now();
-      sceneBVH.updateCulling(camera, frustumResult);
+      sceneBVH.frustumCulling(camera, frustumResult);
       frustumCullingTime += performance.now();
       scene.children = frustumResult;
     }
@@ -154,7 +152,7 @@ if (useBVH) {
   document.getElementById("info").innerText =
     `construction time  : ${buildTime.toFixed(2)}ms\n` +
     `surface area score : ${inspector.surfaceScore.toFixed(2)}\n` +
-    `efficiency         : ${inspector.efficiency.toFixed(2)}\n` +
+    `area proportion    : ${inspector.areaProportion.toFixed(2)}\n` +
     `total nodes        : ${inspector.totalNodes}\n` +
     `total leaf nodes   : ${inspector.totalLeafNodes}\n` +
     `min / max depth    : ${inspector.minDepth} / ${inspector.maxDepth}\n`;

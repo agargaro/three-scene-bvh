@@ -1,18 +1,18 @@
 import { Main, PerspectiveCameraAuto } from '@three.ez/main';
-import { BoxGeometry, ConeGeometry, Mesh, MeshNormalMaterial, Object3D, Scene, SphereGeometry, TorusGeometry } from 'three';
+import { BoxGeometry, ConeGeometry, Mesh, MeshNormalMaterial, Object3D, Scene, SphereGeometry, TorusGeometry, Vector3 } from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
+import { HybridBuilder } from '../builder/hybridBuilder';
 import { SceneBVH } from '../three.js/sceneBVH';
 import { SceneBVHHelper } from '../three.js/sceneBVHHelper';
 import { PRNG } from './utils/random';
-import { HybridBuilder } from '../builder/hybridBuilder';
 
-const count = 100;
+const count = 20;
 const halfRadius = 50; // to positioning meshes
 const marginBVH = 0;
 const random = new PRNG(count);
 
 const builder = new HybridBuilder<Object3D>(marginBVH);
-const sceneBVH = new SceneBVH(builder, false);
+const sceneBVH = new SceneBVH(builder);
 
 const scene = new Scene();
 scene.activeSmartRendering(); // render only if necessary
@@ -26,7 +26,7 @@ scene.on('drag', (e) => {
   mesh.matrixWorld.copy(mesh.matrix);
 
   sceneBVH.move(mesh); // update mesh inside bvh
-  helper.update();
+  // helper.update();
 });
 
 const camera = new PerspectiveCameraAuto(70).translateZ(halfRadius * 2);
@@ -48,10 +48,21 @@ for (let i = 0; i < count; i++) {
   mesh.matrix.compose(mesh.position, mesh.quaternion, mesh.scale);
   mesh.matrixWorld.copy(mesh.matrix);
 
+  const axis = new Vector3().randomDirection();
+
+  mesh.on('animate', (e) => {
+    mesh.rotateOnAxis(axis, e.delta);
+    mesh.matrix.compose(mesh.position, mesh.quaternion, mesh.scale);
+    mesh.matrixWorld.copy(mesh.matrix);
+    sceneBVH.move(mesh);
+  });
+
   scene.add(mesh);
 
   sceneBVH.insert(mesh); // insert inside BVH
 }
+
+scene.on('animate', () => helper.update());
 
 const helper = new SceneBVHHelper(sceneBVH, 40, true);
 helper.interceptByRaycaster = false;

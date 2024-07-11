@@ -1,9 +1,8 @@
-import { FloatArray, IBVHBuilder, Node } from '../core/BVH';
+import { BVHNode, FloatArray } from '../core/BVHNode';
 import { areaBox, areaFromTwoBoxes, isBoxInsideBox, unionBox } from '../utils/boxUtils';
+import { IBVHBuilder, onLeafCreationCallback } from './IBVHBuilder';
 
-export type IncrementalNode<L> = Node<IncrementalNodeData<L>, L>;
-
-type QueueElement<L> = { node: IncrementalNode<L>; inheritedCost: number; } // TODO REMOVE
+export type IncrementalNode<L> = BVHNode<IncrementalNodeData<L>, L>;
 
 export type IncrementalNodeData<L> = {
   parent?: IncrementalNode<L>;
@@ -18,8 +17,8 @@ export class IncrementalBuilder<L> implements IBVHBuilder<IncrementalNodeData<L>
     this._margin = margin;
   }
 
-  public clear(): void {
-    this.root = null;
+  public createFromArray(objects: L[], boxes: FloatArray[], onLeafCreation?: onLeafCreationCallback<IncrementalNodeData<L>, L>): void {
+    throw new Error('Method not implemented.');
   }
 
   public insert(object: L, box: FloatArray): IncrementalNode<L> {
@@ -35,33 +34,8 @@ export class IncrementalBuilder<L> implements IBVHBuilder<IncrementalNodeData<L>
     return leaf;
   }
 
-  protected insertLeaf(leaf: IncrementalNode<L>, newParent?: IncrementalNode<L>): void {
-    leaf.area = areaBox(leaf.box); // if only move we don't need to recalculate it?
-
-    const sibling = this.findBestSibling(leaf.box, leaf.area); // TODO change it here
-
-    const oldParent = sibling.parent;
-
-    if (!newParent) {
-      newParent = this.createInternalNode(oldParent, sibling, leaf);
-    } else {
-      newParent.parent = oldParent;
-      newParent.left = sibling;
-      newParent.right = leaf;
-    }
-
-    sibling.parent = newParent;
-    leaf.parent = newParent;
-
-    if (oldParent === null) {
-      // The sibling was the root
-      this.root = newParent;
-    } else {
-      if (oldParent.left == sibling) oldParent.left = newParent;
-      else oldParent.right = newParent;
-    }
-
-    this.refitAndRotate(newParent);
+  public insertRange(objects: L[], boxes: FloatArray[], onLeafCreation?: onLeafCreationCallback<IncrementalNodeData<L>, L>): void {
+    throw new Error('Method not implemented.');
   }
 
   //update node.box before calling this function
@@ -98,6 +72,40 @@ export class IncrementalBuilder<L> implements IBVHBuilder<IncrementalNodeData<L>
     return parent;
   }
 
+  public clear(): void {
+    this.root = null;
+  }
+
+  protected insertLeaf(leaf: IncrementalNode<L>, newParent?: IncrementalNode<L>): void {
+    const area = !newParent ? areaBox(leaf.box) : leaf.area;
+
+    const sibling = this.findBestSibling(leaf.box, area);
+
+    const oldParent = sibling.parent;
+
+    if (!newParent) {
+      leaf.area = area;
+      newParent = this.createInternalNode(oldParent, sibling, leaf);
+    } else {
+      newParent.parent = oldParent;
+      newParent.left = sibling;
+      newParent.right = leaf;
+    }
+
+    sibling.parent = newParent;
+    leaf.parent = newParent;
+
+    if (oldParent === null) {
+      // The sibling was the root
+      this.root = newParent;
+    } else {
+      if (oldParent.left == sibling) oldParent.left = newParent;
+      else oldParent.right = newParent;
+    }
+
+    this.refitAndRotate(newParent);
+  }
+
   protected createLeafNode(object: L, box: FloatArray): IncrementalNode<L> {
     return { box, object, parent: null, area: null };
   }
@@ -106,7 +114,6 @@ export class IncrementalBuilder<L> implements IBVHBuilder<IncrementalNodeData<L>
     return { parent, left: sibling, right: leaf, box: new Float64Array(6) };
   }
 
-  // FASTEST
   protected findBestSibling(leafBox: FloatArray, leafArea: number): IncrementalNode<L> {
     const root = this.root;
     let bestNode = root;
@@ -161,95 +168,6 @@ export class IncrementalBuilder<L> implements IBVHBuilder<IncrementalNodeData<L>
       }
     }
   }
-
-  // SLOWER
-  protected findBestSibling_no_recursion(leafBox: FloatArray, leafArea: number): IncrementalNode<L> {
-    const root = this.root;
-    const stack: QueueElement<L>[] = [];
-    let bestNode = root;
-    let bestCost = areaFromTwoBoxes(leafBox, root.box);
-    let element: QueueElement<L>;
-
-    stack.push({ node: root, inheritedCost: bestCost - root.area });
-
-    while (element = stack.pop()) {
-      const node = element.node;
-      const inheritedCost = element.inheritedCost;
-
-      if (leafArea + inheritedCost >= bestCost || node.object) continue;
-
-      const nodeL = node.left;
-      const nodeR = node.right;
-
-      const directCostL = areaFromTwoBoxes(leafBox, nodeL.box);
-      const currentCostL = directCostL + inheritedCost;
-      const inheritedCostL = inheritedCost + directCostL - nodeL.area;
-
-      const directCostR = areaFromTwoBoxes(leafBox, nodeR.box);
-      const currentCostR = directCostR + inheritedCost;
-      const inheritedCostR = inheritedCost + directCostR - nodeR.area;
-
-      if (currentCostL > currentCostR) {
-        if (bestCost > currentCostR) {
-          bestNode = nodeR;
-          bestCost = currentCostR;
-        }
-      } else {
-        if (bestCost > currentCostL) {
-          bestNode = nodeL;
-          bestCost = currentCostL;
-        }
-      }
-
-      if (inheritedCostR > inheritedCostL) {
-        stack.push({ node: nodeR, inheritedCost: inheritedCostR });
-        stack.push({ node: nodeL, inheritedCost: inheritedCostL });
-      } else {
-        stack.push({ node: nodeL, inheritedCost: inheritedCostL });
-        stack.push({ node: nodeR, inheritedCost: inheritedCostR });
-      }
-    }
-
-    return bestNode;
-  }
-
-  // SLOWEST
-  protected findBestSibling_original(leafBox: FloatArray, leafArea: number): IncrementalNode<L> {
-    const stack: QueueElement<L>[] = [{ node: this.root, inheritedCost: 0 }]; // we can avoid to recreate every time?
-
-    let bestNode = null;
-    let bestCost = Infinity;
-    let item: QueueElement<L>;
-    let node: IncrementalNode<L>;
-    let inheritedCost: number;
-
-    while ((item = stack.pop())) {
-      node = item.node;
-      inheritedCost = item.inheritedCost;
-
-      const directCost = areaFromTwoBoxes(leafBox, node.box);
-      const currentCost = directCost + inheritedCost;
-
-      if (bestCost > currentCost) {
-        bestNode = node;
-        bestCost = currentCost;
-      }
-
-      if (!node.object) {
-        // is not leaf
-        inheritedCost += directCost - node.area;
-        const lowCost = leafArea + inheritedCost;
-
-        if (bestCost > lowCost) {
-          stack.push({ node: node.left, inheritedCost }); // use a sortedQueue instead?
-          stack.push({ node: node.right, inheritedCost });
-        }
-      }
-    }
-
-    return bestNode;
-  }
-
 
   protected refit(node: IncrementalNode<L>): void {
     const margin = this._margin;
@@ -350,16 +268,6 @@ export class IncrementalBuilder<L> implements IBVHBuilder<IncrementalNodeData<L>
 
     unionBox(parentB.left.box, parentB.right.box, parentBox, this._margin);
     parentB.area = areaBox(parentBox);
-  }
-
-  public createFromArray(objects: L[], boxArray: FloatArray[]): IncrementalNode<L> {
-    const count = objects.length;
-
-    for (let i = 0; i < count; i++) {
-      this.insert(objects[i], boxArray[i]);
-    }
-
-    return this.root;
   }
 
 }
