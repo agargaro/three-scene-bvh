@@ -1,9 +1,9 @@
 import { Main, PerspectiveCameraAuto } from '@three.ez/main';
-import { BoxGeometry, ConeGeometry, Intersection, LineSegments, Mesh, MeshBasicMaterial, MeshNormalMaterial, Object3D, Scene, SphereGeometry, TorusGeometry } from 'three';
+import { BVHInspector } from 'bvh.js';
+import { BoxGeometry, ConeGeometry, Intersection, LineSegments, Mesh, MeshBasicMaterial, MeshNormalMaterial, Scene, SphereGeometry, TorusGeometry } from 'three';
 import { MapControls } from 'three/examples/jsm/controls/MapControls';
 import { SceneBVH } from '../core/sceneBVH';
 import { PRNG } from './utils/random';
-import { BVHInspector, HybridBuilder } from 'bvh.js';
 
 /**
  * In this example, a BVH is used to perform frustum culling and raycasting.
@@ -15,12 +15,11 @@ const count = 100000;
 const animatedCount = 10000;
 const halfRadius = 20000; // to positioning meshes
 const marginBVH = halfRadius / 100;
-const builder = new HybridBuilder<Object3D>(marginBVH);
 const random = new PRNG(count);
 const statsFPSRefresh = 5;
 const meshes: Mesh[] = new Array(count);
 
-const sceneBVH = useBVH ? new SceneBVH(builder) : null;
+const sceneBVH = useBVH ? new SceneBVH(marginBVH) : null;
 
 const scene = new Scene();
 scene.interceptByRaycaster = false; // disable three.ez events

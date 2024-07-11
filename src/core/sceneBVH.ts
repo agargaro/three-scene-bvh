@@ -1,8 +1,7 @@
+import { BVH, CoordinateSystem, HybridBuilder, WebGLCoordinateSystem } from 'bvh.js';
+import { BVHNode, FloatArray } from 'bvh.js/core/BVHNode';
 import { Camera, Intersection, Matrix4, Object3D, Raycaster } from 'three';
 import { ascSortIntersection, getBox, RenderableObject } from './utils';
-import { BVH, CoordinateSystem, WebGLCoordinateSystem } from 'bvh.js';
-import { BVHNode, FloatArray } from 'bvh.js/core/BVHNode';
-import { IBVHBuilder } from 'bvh.js/builder/IBVHBuilder';
 
 type NodeData = {};
 type LeafData = Object3D;
@@ -11,8 +10,8 @@ export class SceneBVH {
   public bvh: BVH<NodeData, LeafData>;
   public map = new WeakMap<Object3D, BVHNode<NodeData, LeafData>>();
 
-  constructor(builder: IBVHBuilder<NodeData, LeafData>, coordinateSystem: CoordinateSystem = WebGLCoordinateSystem) {
-    this.bvh = new BVH(builder, coordinateSystem);
+  constructor(margin = 0, coordinateSystem: CoordinateSystem = WebGLCoordinateSystem) {
+    this.bvh = new BVH(new HybridBuilder(margin), coordinateSystem);
   }
 
   public createFromArray(objects: RenderableObject[]): void {

@@ -1,18 +1,16 @@
 import { Main, PerspectiveCameraAuto } from '@three.ez/main';
-import { BoxGeometry, ConeGeometry, Mesh, MeshNormalMaterial, Object3D, Scene, SphereGeometry, TorusGeometry, Vector3 } from 'three';
+import { BoxGeometry, ConeGeometry, Mesh, MeshNormalMaterial, Scene, SphereGeometry, TorusGeometry, Vector3 } from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import { SceneBVH } from '../core/sceneBVH';
 import { SceneBVHHelper } from '../core/sceneBVHHelper';
 import { PRNG } from './utils/random';
-import { HybridBuilder } from 'bvh.js';
 
 const count = 20;
 const halfRadius = 50; // to positioning meshes
 const marginBVH = 0;
 const random = new PRNG(count);
 
-const builder = new HybridBuilder<Object3D>(marginBVH);
-const sceneBVH = new SceneBVH(builder);
+const sceneBVH = new SceneBVH(marginBVH);
 
 const scene = new Scene();
 scene.activeSmartRendering(); // render only if necessary
