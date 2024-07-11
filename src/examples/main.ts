@@ -1,10 +1,9 @@
 import { Main, PerspectiveCameraAuto } from '@three.ez/main';
 import { BoxGeometry, ConeGeometry, Intersection, LineSegments, Mesh, MeshBasicMaterial, MeshNormalMaterial, Object3D, Scene, SphereGeometry, TorusGeometry } from 'three';
 import { MapControls } from 'three/examples/jsm/controls/MapControls';
-import { HybridBuilder } from '../builder/hybridBuilder';
-import { SceneBVH } from '../three.js/sceneBVH';
-import { BVHInspector } from '../utils/inspector';
+import { SceneBVH } from '../core/sceneBVH';
 import { PRNG } from './utils/random';
+import { BVHInspector, HybridBuilder } from 'bvh.js';
 
 /**
  * In this example, a BVH is used to perform frustum culling and raycasting.

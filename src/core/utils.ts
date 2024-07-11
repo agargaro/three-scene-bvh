@@ -1,5 +1,5 @@
+import { FloatArray } from "bvh.js/core/BVHNode";
 import { Box3, Intersection, Line, Mesh, Points, Sprite } from "three";
-import { FloatArray } from "../core/BVHNode";
 
 export type RenderableObject = Mesh | Line | Points | Sprite;
 

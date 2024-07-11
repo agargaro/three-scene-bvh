@@ -7,6 +7,7 @@
   },
   "dependencies": {
     "@three.ez/main": "^0.5.4",
+    "bvh.js": "^0.0.1",
     "three": "^0.166.0"
   },
   "devDependencies": {

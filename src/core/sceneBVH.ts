@@ -1,9 +1,8 @@
 import { Camera, Intersection, Matrix4, Object3D, Raycaster } from 'three';
-import { IBVHBuilder } from '../builder/IBVHBuilder';
-import { BVH } from '../core/BVH';
-import { BVHNode, FloatArray } from '../core/BVHNode';
-import { CoordinateSystem, WebGLCoordinateSystem } from '../utils/frustum';
 import { ascSortIntersection, getBox, RenderableObject } from './utils';
+import { BVH, CoordinateSystem, WebGLCoordinateSystem } from 'bvh.js';
+import { BVHNode, FloatArray } from 'bvh.js/core/BVHNode';
+import { IBVHBuilder } from 'bvh.js/builder/IBVHBuilder';
 
 type NodeData = {};
 type LeafData = Object3D;
@@ -20,7 +19,7 @@ export class SceneBVH {
     this.clear();
     
     const count = objects.length;
-    const boxes: FloatArray[] = new Array(count);
+    const boxes: FloatArray[] = new Array(count); // TODO change to float64Array?
 
     for (let i = 0; i < count; i++) {
       boxes[i] = getBox(objects[i]); // this creates float64array
