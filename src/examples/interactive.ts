@@ -5,30 +5,24 @@ import { SceneBVH } from '../core/sceneBVH';
 import { SceneBVHHelper } from '../core/sceneBVHHelper';
 import { PRNG } from './utils/random';
 
-const count = 20;
-const halfRadius = 50; // to positioning meshes
+const count = 50;
+const radius = 100; // to positioning meshes
 const marginBVH = 0;
 const random = new PRNG(count);
 
 const sceneBVH = new SceneBVH(marginBVH);
 
 const scene = new Scene();
-scene.activeSmartRendering(); // render only if necessary
-scene.matrixAutoUpdate = false;
-scene.matrixWorldAutoUpdate = false;
+scene.timeScale = 0.2;
 
 scene.on('drag', (e) => {
   const mesh = e.target as Mesh;
-
-  mesh.matrix.compose(mesh.position, mesh.quaternion, mesh.scale);
-  mesh.matrixWorld.copy(mesh.matrix);
-
   sceneBVH.move(mesh); // update mesh inside bvh
 });
 
-const camera = new PerspectiveCameraAuto(70).translateZ(halfRadius * 2);
+const camera = new PerspectiveCameraAuto(70).translateZ(radius * 2);
 
-const geometries = [new BoxGeometry(10, 10, 10), new SphereGeometry(5, 15, 15), new ConeGeometry(5, 10, 15, 15), new TorusGeometry(5, 1, 15, 15)];
+const geometries = [new BoxGeometry(10, 10, 10), new SphereGeometry(5), new ConeGeometry(5, 10), new TorusGeometry(5, 1)];
 const material = new MeshNormalMaterial();
 
 for (let i = 0; i < count; i++) {
@@ -36,32 +30,29 @@ for (let i = 0; i < count; i++) {
 
   mesh.draggable = true;
 
-  mesh.position.x = random.range(-halfRadius, halfRadius);
-  mesh.position.y = random.range(-halfRadius, halfRadius);
-  mesh.position.z = random.range(-halfRadius, halfRadius);
+  const r = random.range(5, radius);
+  const phi = random.range(1, 2);
+  const theta = random.range(1, 2);
+
+  mesh.position.setFromSphericalCoords(r, phi, theta);
 
   mesh.quaternion.random();
-
-  mesh.matrix.compose(mesh.position, mesh.quaternion, mesh.scale);
-  mesh.matrixWorld.copy(mesh.matrix);
 
   const axis = new Vector3().randomDirection();
 
   mesh.on('animate', (e) => {
     mesh.rotateOnAxis(axis, e.delta);
-    mesh.matrix.compose(mesh.position, mesh.quaternion, mesh.scale);
-    mesh.matrixWorld.copy(mesh.matrix);
+    mesh.position.setFromSphericalCoords(r, e.total * phi, theta * e.total * theta);
     sceneBVH.move(mesh);
   });
 
   scene.add(mesh);
-
   sceneBVH.insert(mesh); // insert inside BVH
 }
 
 scene.on('animate', () => helper.update());
 
-const helper = new SceneBVHHelper(sceneBVH, 40, true);
+const helper = new SceneBVHHelper(sceneBVH);
 helper.interceptByRaycaster = false;
 scene.add(helper);
 

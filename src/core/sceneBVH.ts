@@ -1,5 +1,4 @@
-import { BVH, CoordinateSystem, HybridBuilder, WebGLCoordinateSystem } from 'bvh.js';
-import { BVHNode, FloatArray } from 'bvh.js/core/BVHNode';
+import { BVH, CoordinateSystem, HybridBuilder, WebGLCoordinateSystem, BVHNode, FloatArray } from 'bvh.js/src';
 import { Camera, Intersection, Matrix4, Object3D, Raycaster } from 'three';
 import { ascSortIntersection, getBox, RenderableObject } from './utils';
 
@@ -10,13 +9,13 @@ export class SceneBVH {
   public bvh: BVH<NodeData, LeafData>;
   public map = new WeakMap<Object3D, BVHNode<NodeData, LeafData>>();
 
-  constructor(margin = 0, coordinateSystem: CoordinateSystem = WebGLCoordinateSystem) {
-    this.bvh = new BVH(new HybridBuilder(margin), coordinateSystem);
+  constructor(protected margin = 0, coordinateSystem: CoordinateSystem = WebGLCoordinateSystem) {
+    this.bvh = new BVH(new HybridBuilder(false), coordinateSystem);
   }
 
   public createFromArray(objects: RenderableObject[]): void {
     this.clear();
-    
+
     const count = objects.length;
     const boxes: FloatArray[] = new Array(count); // TODO change to float64Array?
 
@@ -30,7 +29,7 @@ export class SceneBVH {
   }
 
   public insert(object: RenderableObject): void {
-    const node = this.bvh.insert(object, getBox(object));
+    const node = this.bvh.insert(object, getBox(object), this.margin);
     this.map.set(object, node);
   }
 
@@ -39,10 +38,10 @@ export class SceneBVH {
     const boxes: FloatArray[] = new Array(count);
 
     for (let i = 0; i < count; i++) {
-      boxes[i] = getBox(objects[i]); // this creates float64array
+      boxes[i] = getBox(objects[i]); // this creates float32array
     }
 
-    this.bvh.insertRange(objects, boxes, (node) => {
+    this.bvh.insertRange(objects, boxes, this.margin, (node) => {
       this.map.set(node.object, node);
     });
   }
@@ -50,7 +49,7 @@ export class SceneBVH {
   public move(object: RenderableObject): void {
     const node = this.map.get(object);
     getBox(object, node.box); // update box
-    this.bvh.move(node);
+    this.bvh.move(node, this.margin);
   }
 
   public delete(object: RenderableObject): void {
@@ -65,8 +64,14 @@ export class SceneBVH {
   }
 
   public frustumCulling(camera: Camera, result: Object3D[]): void {
+    const margin = this.margin;
+
     _projScreenMatrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
-    this.bvh.frustumCulling(_projScreenMatrix.elements, result);
+    this.bvh.frustumCulling(_projScreenMatrix.elements, (node, frustum, mask) => {
+
+      if (frustum.isIntersected(node.box, mask, margin)) result.push(node.object);
+
+    });
   }
 
   public raycast(raycaster: Raycaster, result: Intersection[]): void {

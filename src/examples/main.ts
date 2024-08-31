@@ -1,5 +1,5 @@
 import { Main, PerspectiveCameraAuto } from '@three.ez/main';
-import { BVHInspector } from 'bvh.js';
+import { BVHInspector } from 'bvh.js/src';
 import { BoxGeometry, ConeGeometry, Intersection, LineSegments, Mesh, MeshBasicMaterial, MeshNormalMaterial, Scene, SphereGeometry, TorusGeometry } from 'three';
 import { MapControls } from 'three/examples/jsm/controls/MapControls';
 import { SceneBVH } from '../core/sceneBVH';
@@ -12,9 +12,9 @@ import { PRNG } from './utils/random';
 
 const useBVH = true; // you can test performance changing this. if you set false is the native three.js frustum culling and NO raycasting.
 const count = 100000;
-const animatedCount = 10000;
+const animatedCount = 20000;
 const halfRadius = 20000; // to positioning meshes
-const marginBVH = halfRadius / 100;
+const marginBVH = 200;
 const random = new PRNG(count);
 const statsFPSRefresh = 5;
 const meshes: Mesh[] = new Array(count);
@@ -55,7 +55,8 @@ for (let i = 0; i < count; i++) {
 const start = performance.now();
 
 if (useBVH) {
-  sceneBVH.createFromArray(scene.children as Mesh[]);
+  // sceneBVH.createFromArray(scene.children as Mesh[]);
+  sceneBVH.insertRange(scene.children as Mesh[]);
 }
 
 const buildTime = performance.now() - start;

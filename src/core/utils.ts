@@ -1,11 +1,11 @@
-import { FloatArray } from "bvh.js/core/BVHNode";
+import { FloatArray } from "bvh.js/src";
 import { Box3, Intersection, Line, Mesh, Points, Sprite } from "three";
 
 export type RenderableObject = Mesh | Line | Points | Sprite;
 
 const box3 = new Box3();
 
-export function getBox(object: RenderableObject, array: FloatArray = new Float64Array(6)): FloatArray {
+export function getBox(object: RenderableObject, array: FloatArray = new Float32Array(6)): FloatArray {
   if (!object.geometry.boundingBox) {
     object.geometry.computeBoundingBox();
   }
